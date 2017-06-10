@@ -93,6 +93,7 @@ instance SIMDVector Word8X16 where
     vectorSize  _      = 16
     elementSize _      = 1
     broadcastVector    = broadcastWord8X16
+    generateVector     = generateWord8X16
     unsafeInsertVector = unsafeInsertWord8X16
     packVector         = packWord8X16
     unpackVector       = unpackWord8X16
@@ -158,6 +159,11 @@ instance Unbox Word8X16
 -- | Broadcast a scalar to all elements of a vector.
 broadcastWord8X16 :: Word8 -> Word8X16
 broadcastWord8X16 (W8# x) = Word8X16 (broadcastWord8X16# x)
+
+{-# INLINE[1] generateWord8X16 #-}
+-- | Apply a function to each element of a vector (unpacks and repacks the vector)
+generateWord8X16 :: (Int -> Word8) -> Word8X16
+generateWord8X16 f = packWord8X16 (f 0, f 1, f 2, f 3, f 4, f 5, f 6, f 7, f 8, f 9, f 10, f 11, f 12, f 13, f 14, f 15)
 
 {-# INLINE packWord8X16 #-}
 -- | Pack the elements of a tuple into a vector.

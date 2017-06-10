@@ -113,6 +113,7 @@ instance SIMDVector FloatX8 where
     vectorSize  _      = 8
     elementSize _      = 4
     broadcastVector    = broadcastFloatX8
+    generateVector     = generateFloatX8
     unsafeInsertVector = unsafeInsertFloatX8
     packVector         = packFloatX8
     unpackVector       = unpackFloatX8
@@ -176,6 +177,11 @@ instance Unbox FloatX8
 broadcastFloatX8 :: Float -> FloatX8
 broadcastFloatX8 (F# x) = case broadcastFloatX4# x of
     v -> FloatX8 v v
+
+{-# INLINE[1] generateFloatX8 #-}
+-- | Apply a function to each element of a vector (unpacks and repacks the vector)
+generateFloatX8 :: (Int -> Float) -> FloatX8
+generateFloatX8 f = packFloatX8 (f 0, f 1, f 2, f 3, f 4, f 5, f 6, f 7)
 
 {-# INLINE packFloatX8 #-}
 -- | Pack the elements of a tuple into a vector.

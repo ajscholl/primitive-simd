@@ -113,6 +113,7 @@ instance SIMDVector FloatX16 where
     vectorSize  _      = 16
     elementSize _      = 4
     broadcastVector    = broadcastFloatX16
+    generateVector     = generateFloatX16
     unsafeInsertVector = unsafeInsertFloatX16
     packVector         = packFloatX16
     unpackVector       = unpackFloatX16
@@ -174,6 +175,11 @@ instance Unbox FloatX16
 -- | Broadcast a scalar to all elements of a vector.
 broadcastFloatX16 :: Float -> FloatX16
 broadcastFloatX16 (F# x) = FloatX16 (broadcastFloatX16# x)
+
+{-# INLINE[1] generateFloatX16 #-}
+-- | Apply a function to each element of a vector (unpacks and repacks the vector)
+generateFloatX16 :: (Int -> Float) -> FloatX16
+generateFloatX16 f = packFloatX16 (f 0, f 1, f 2, f 3, f 4, f 5, f 6, f 7, f 8, f 9, f 10, f 11, f 12, f 13, f 14, f 15)
 
 {-# INLINE packFloatX16 #-}
 -- | Pack the elements of a tuple into a vector.

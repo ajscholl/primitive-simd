@@ -313,6 +313,7 @@ genTypeDecl maxCapability typeDesc = unlines
             ,"    vectorSize  _      = " ++ show (getVectorSize typeDesc)
             ,"    elementSize _      = " ++ show (getElementSize typeDesc)
             ,"    broadcastVector    = broadcast" ++ dataName
+            ,"    generateVector     = generate" ++ dataName
             ,"    unsafeInsertVector = unsafeInsert" ++ dataName
             ,"    packVector         = pack" ++ dataName
             ,"    unpackVector       = unpack" ++ dataName
@@ -460,6 +461,19 @@ getInsertFunc maxCapability typeDesc = unlines ["{-# INLINE " ++ funcName ++ " #
         toCasesHelper :: (String, String) -> [String] -> [String]
         toCasesHelper (_, x) [] = ["| otherwise " ++ x]
         toCasesHelper (c, x) xs = ("| " ++ c ++ " " ++ x) : xs
+
+-- | Generate a function to generate a vector from an index-function
+getGenerateFunc :: TypeDesc -> String
+getGenerateFunc typeDesc = unlines
+    ["{-# INLINE[1] " ++ funcName ++ " #-}"
+    ,"-- | Apply a function to each element of a vector (unpacks and repacks the vector)"
+    ,funcName ++ " :: (Int -> " ++ elemName ++ ") -> " ++ dataName
+    ,funcName ++ " f = pack" ++ dataName ++ " " ++ matchTuple True (map (\ i -> "f "++ i) indices)
+    ]
+    where
+        (dataName, _primName, elemName) = getTypeInfo typeDesc
+        funcName = "generate" ++ dataName
+        indices     = map show [0 :: Int .. getVectorSize typeDesc - 1]
 
 -- | Generate a function to map a function over a vector
 getMapFunc :: TypeDesc -> String
@@ -716,6 +730,7 @@ getWriteOffAddrFunc maxCapability typeDesc = unlines ["{-# INLINE " ++ funcName 
 generatorFuncs :: Int -> [TypeDesc -> String]
 generatorFuncs maxCapability =
     [getBroadCastFunc maxCapability
+    ,getGenerateFunc
     ,getPackFunc maxCapability
     ,getUnpackFunc maxCapability
     ,getInsertFunc maxCapability
@@ -784,6 +799,9 @@ classFile doRules = unlines $
     ,"    elementSize      :: v -> Int"
     ,"    -- | Broadcast a scalar to all elements of a vector."
     ,"    broadcastVector  :: Elem v -> v"
+    ,"    -- | The vector that results from applying the given function to all indices in"
+    ,"    --   the range @0 .. 'vectorSize' - 1@."
+    ,"    generateVector   :: (Int -> Elem v) -> v"
     ,"    -- | Insert a scalar at the given position (starting from 0) in a vector. If the index is outside of the range an exception is thrown."
     ,"    insertVector     :: v -> Elem v -> Int -> v"
     ,"    insertVector v e i | i < 0            = error $ \"insertVector: negative argument: \" ++ show i"

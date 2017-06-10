@@ -124,6 +124,7 @@ instance SIMDVector Int32X4 where
     vectorSize  _      = 4
     elementSize _      = 4
     broadcastVector    = broadcastInt32X4
+    generateVector     = generateInt32X4
     unsafeInsertVector = unsafeInsertInt32X4
     packVector         = packInt32X4
     unpackVector       = unpackInt32X4
@@ -190,6 +191,11 @@ instance Unbox Int32X4
 broadcastInt32X4 :: Int32 -> Int32X4
 broadcastInt32X4 (I32# x) = case broadcastInt32# x of
     v -> Int32X4 v v v v
+
+{-# INLINE[1] generateInt32X4 #-}
+-- | Apply a function to each element of a vector (unpacks and repacks the vector)
+generateInt32X4 :: (Int -> Int32) -> Int32X4
+generateInt32X4 f = packInt32X4 (f 0, f 1, f 2, f 3)
 
 {-# INLINE packInt32X4 #-}
 -- | Pack the elements of a tuple into a vector.

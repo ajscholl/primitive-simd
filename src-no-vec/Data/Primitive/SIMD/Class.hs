@@ -35,6 +35,9 @@ class (Num v, Real (Elem v)) => SIMDVector v where
     elementSize      :: v -> Int
     -- | Broadcast a scalar to all elements of a vector.
     broadcastVector  :: Elem v -> v
+    -- | The vector that results from applying the given function to all indices in
+    --   the range @0 .. 'vectorSize' - 1@.
+    generateVector   :: (Int -> Elem v) -> v
     -- | Insert a scalar at the given position (starting from 0) in a vector. If the index is outside of the range an exception is thrown.
     insertVector     :: v -> Elem v -> Int -> v
     insertVector v e i | i < 0            = error $ "insertVector: negative argument: " ++ show i

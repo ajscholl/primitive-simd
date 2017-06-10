@@ -134,6 +134,7 @@ instance SIMDVector Int64X8 where
     vectorSize  _      = 8
     elementSize _      = 8
     broadcastVector    = broadcastInt64X8
+    generateVector     = generateInt64X8
     unsafeInsertVector = unsafeInsertInt64X8
     packVector         = packInt64X8
     unpackVector       = unpackInt64X8
@@ -200,6 +201,11 @@ instance Unbox Int64X8
 broadcastInt64X8 :: Int64 -> Int64X8
 broadcastInt64X8 (I64# x) = case broadcastInt64# x of
     v -> Int64X8 v v v v v v v v
+
+{-# INLINE[1] generateInt64X8 #-}
+-- | Apply a function to each element of a vector (unpacks and repacks the vector)
+generateInt64X8 :: (Int -> Int64) -> Int64X8
+generateInt64X8 f = packInt64X8 (f 0, f 1, f 2, f 3, f 4, f 5, f 6, f 7)
 
 {-# INLINE packInt64X8 #-}
 -- | Pack the elements of a tuple into a vector.

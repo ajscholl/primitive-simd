@@ -120,6 +120,7 @@ instance SIMDVector Word8X64 where
     vectorSize  _      = 64
     elementSize _      = 1
     broadcastVector    = broadcastWord8X64
+    generateVector     = generateWord8X64
     unsafeInsertVector = unsafeInsertWord8X64
     packVector         = packWord8X64
     unpackVector       = unpackWord8X64
@@ -186,6 +187,11 @@ instance Unbox Word8X64
 broadcastWord8X64 :: Word8 -> Word8X64
 broadcastWord8X64 (W8# x) = case broadcastWord8# x of
     v -> Word8X64 v v v v v v v v v v v v v v v v v v v v v v v v v v v v v v v v v v v v v v v v v v v v v v v v v v v v v v v v v v v v v v v v
+
+{-# INLINE[1] generateWord8X64 #-}
+-- | Apply a function to each element of a vector (unpacks and repacks the vector)
+generateWord8X64 :: (Int -> Word8) -> Word8X64
+generateWord8X64 f = packWord8X64 (Tuple64 (f 0) (f 1) (f 2) (f 3) (f 4) (f 5) (f 6) (f 7) (f 8) (f 9) (f 10) (f 11) (f 12) (f 13) (f 14) (f 15) (f 16) (f 17) (f 18) (f 19) (f 20) (f 21) (f 22) (f 23) (f 24) (f 25) (f 26) (f 27) (f 28) (f 29) (f 30) (f 31) (f 32) (f 33) (f 34) (f 35) (f 36) (f 37) (f 38) (f 39) (f 40) (f 41) (f 42) (f 43) (f 44) (f 45) (f 46) (f 47) (f 48) (f 49) (f 50) (f 51) (f 52) (f 53) (f 54) (f 55) (f 56) (f 57) (f 58) (f 59) (f 60) (f 61) (f 62) (f 63))
 
 {-# INLINE packWord8X64 #-}
 -- | Pack the elements of a tuple into a vector.
