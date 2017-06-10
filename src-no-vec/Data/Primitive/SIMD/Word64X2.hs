@@ -130,6 +130,7 @@ instance SIMDVector Word64X2 where
     vectorSize  _      = 2
     elementSize _      = 8
     broadcastVector    = broadcastWord64X2
+    generateVector     = generateWord64X2
     unsafeInsertVector = unsafeInsertWord64X2
     packVector         = packWord64X2
     unpackVector       = unpackWord64X2
@@ -196,6 +197,11 @@ instance Unbox Word64X2
 broadcastWord64X2 :: Word64 -> Word64X2
 broadcastWord64X2 (W64# x) = case broadcastWord64# x of
     v -> Word64X2 v v
+
+{-# INLINE[1] generateWord64X2 #-}
+-- | Apply a function to each element of a vector (unpacks and repacks the vector)
+generateWord64X2 :: (Int -> Word64) -> Word64X2
+generateWord64X2 f = packWord64X2 (f 0, f 1)
 
 {-# INLINE packWord64X2 #-}
 -- | Pack the elements of a tuple into a vector.

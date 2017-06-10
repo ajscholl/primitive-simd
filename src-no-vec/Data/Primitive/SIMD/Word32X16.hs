@@ -120,6 +120,7 @@ instance SIMDVector Word32X16 where
     vectorSize  _      = 16
     elementSize _      = 4
     broadcastVector    = broadcastWord32X16
+    generateVector     = generateWord32X16
     unsafeInsertVector = unsafeInsertWord32X16
     packVector         = packWord32X16
     unpackVector       = unpackWord32X16
@@ -186,6 +187,11 @@ instance Unbox Word32X16
 broadcastWord32X16 :: Word32 -> Word32X16
 broadcastWord32X16 (W32# x) = case broadcastWord32# x of
     v -> Word32X16 v v v v v v v v v v v v v v v v
+
+{-# INLINE[1] generateWord32X16 #-}
+-- | Apply a function to each element of a vector (unpacks and repacks the vector)
+generateWord32X16 :: (Int -> Word32) -> Word32X16
+generateWord32X16 f = packWord32X16 (f 0, f 1, f 2, f 3, f 4, f 5, f 6, f 7, f 8, f 9, f 10, f 11, f 12, f 13, f 14, f 15)
 
 {-# INLINE packWord32X16 #-}
 -- | Pack the elements of a tuple into a vector.

@@ -137,6 +137,7 @@ instance SIMDVector DoubleX16 where
     vectorSize  _      = 16
     elementSize _      = 8
     broadcastVector    = broadcastDoubleX16
+    generateVector     = generateDoubleX16
     unsafeInsertVector = unsafeInsertDoubleX16
     packVector         = packDoubleX16
     unpackVector       = unpackDoubleX16
@@ -199,6 +200,11 @@ instance Unbox DoubleX16
 broadcastDoubleX16 :: Double -> DoubleX16
 broadcastDoubleX16 (D# x) = case broadcastDouble# x of
     v -> DoubleX16 v v v v v v v v v v v v v v v v
+
+{-# INLINE[1] generateDoubleX16 #-}
+-- | Apply a function to each element of a vector (unpacks and repacks the vector)
+generateDoubleX16 :: (Int -> Double) -> DoubleX16
+generateDoubleX16 f = packDoubleX16 (f 0, f 1, f 2, f 3, f 4, f 5, f 6, f 7, f 8, f 9, f 10, f 11, f 12, f 13, f 14, f 15)
 
 {-# INLINE packDoubleX16 #-}
 -- | Pack the elements of a tuple into a vector.

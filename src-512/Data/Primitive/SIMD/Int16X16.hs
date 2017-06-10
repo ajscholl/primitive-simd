@@ -94,6 +94,7 @@ instance SIMDVector Int16X16 where
     vectorSize  _      = 16
     elementSize _      = 2
     broadcastVector    = broadcastInt16X16
+    generateVector     = generateInt16X16
     unsafeInsertVector = unsafeInsertInt16X16
     packVector         = packInt16X16
     unpackVector       = unpackInt16X16
@@ -159,6 +160,11 @@ instance Unbox Int16X16
 -- | Broadcast a scalar to all elements of a vector.
 broadcastInt16X16 :: Int16 -> Int16X16
 broadcastInt16X16 (I16# x) = Int16X16 (broadcastInt16X16# x)
+
+{-# INLINE[1] generateInt16X16 #-}
+-- | Apply a function to each element of a vector (unpacks and repacks the vector)
+generateInt16X16 :: (Int -> Int16) -> Int16X16
+generateInt16X16 f = packInt16X16 (f 0, f 1, f 2, f 3, f 4, f 5, f 6, f 7, f 8, f 9, f 10, f 11, f 12, f 13, f 14, f 15)
 
 {-# INLINE packInt16X16 #-}
 -- | Pack the elements of a tuple into a vector.
