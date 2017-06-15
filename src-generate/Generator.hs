@@ -320,7 +320,19 @@ genTypeDecl maxCapability typeDesc = unlines
             ,"    mapVector          = map" ++ dataName
             ,"    zipVector          = zip" ++ dataName
             ,"    foldVector         = fold" ++ dataName
-            ] ++ ["    sumVector          = sum" ++ dataName | splitCount > 1 && maxCapability /= 0]
+            ] ++ ["    sumVector          = sum" ++ dataName | splitCount > 1 && maxCapability /= 0] ++
+            ["    {-# INLINE nullVector #-}"
+            ,"    {-# INLINE vectorSize #-}"
+            ,"    {-# INLINE elementSize #-}"
+            ,"    {-# INLINE broadcastVector #-}"
+            ,"    {-# INLINE generateVector #-}"
+            ,"    {-# INLINE unsafeInsertVector #-}"
+            ,"    {-# INLINE packVector #-}"
+            ,"    {-# INLINE unpackVector #-}"
+            ,"    {-# INLINE mapVector #-}"
+            ,"    {-# INLINE zipVector #-}"
+            ,"    {-# INLINE foldVector #-}"
+            ] ++ ["    {-# INLINE sumVector #-}" | splitCount > 1 && maxCapability /= 0]
         intVectorInstance   = if not $ isFloating typeDesc
             then unlines
                 ["instance SIMDIntVector " ++ dataName ++ " where"
@@ -465,14 +477,19 @@ getInsertFunc maxCapability typeDesc = unlines ["{-# INLINE " ++ funcName ++ " #
 -- | Generate a function to generate a vector from an index-function
 getGenerateFunc :: TypeDesc -> String
 getGenerateFunc typeDesc = unlines
-    ["{-# INLINE[1] " ++ funcName ++ " #-}"
+    ["{-# INLINE " ++ funcName ++ " #-}"
     ,"-- | The vector that results from applying the given function to all indices in"
     ,"--   the range @0 .. " ++ show (getVectorSize typeDesc - 1) ++ "@."
     ,funcName ++ " :: (Int -> " ++ elemName ++ ") -> " ++ dataName
-    ,funcName ++ " f = pack" ++ dataName ++ " " ++ matchTuple True (map (\ i -> "f "++ i) indices)
+    ,funcName ++ " f = " ++ funcName ++ "# (\\ i -> case f (I# i) of { " ++ primName ++ " x -> x })"
+    ,""
+    ,"{-# INLINE[0] " ++ funcName ++ "# #-}"
+    ,"-- | Unboxed helper function."
+    ,funcName ++ "# :: (Int# -> " ++ getUnderlyingPrimType elemName ++ ") -> " ++ dataName
+    ,funcName ++ "# f = inline pack" ++ dataName ++ " " ++ matchTuple True (map (\ i -> primName ++ " (f "++ i ++ "#)") indices)
     ]
     where
-        (dataName, _primName, elemName) = getTypeInfo typeDesc
+        (dataName, primName, elemName) = getTypeInfo typeDesc
         funcName = "generate" ++ dataName
         indices  = map show [0 .. getVectorSize typeDesc - 1]
 
