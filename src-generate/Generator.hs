@@ -466,14 +466,15 @@ getInsertFunc maxCapability typeDesc = unlines ["{-# INLINE " ++ funcName ++ " #
 getGenerateFunc :: TypeDesc -> String
 getGenerateFunc typeDesc = unlines
     ["{-# INLINE[1] " ++ funcName ++ " #-}"
-    ,"-- | Apply a function to each element of a vector (unpacks and repacks the vector)"
+    ,"-- | The vector that results from applying the given function to all indices in"
+    ,"--   the range @0 .. " ++ show (getVectorSize typeDesc - 1) ++ "@."
     ,funcName ++ " :: (Int -> " ++ elemName ++ ") -> " ++ dataName
     ,funcName ++ " f = pack" ++ dataName ++ " " ++ matchTuple True (map (\ i -> "f "++ i) indices)
     ]
     where
         (dataName, _primName, elemName) = getTypeInfo typeDesc
         funcName = "generate" ++ dataName
-        indices     = map show [0 :: Int .. getVectorSize typeDesc - 1]
+        indices  = map show [0 .. getVectorSize typeDesc - 1]
 
 -- | Generate a function to map a function over a vector
 getMapFunc :: TypeDesc -> String
