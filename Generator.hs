@@ -1,4 +1,4 @@
-module Main (main) where
+module Generator (genCode) where
 
 import Control.Monad
 
@@ -401,6 +401,23 @@ getExtendedTypeInfo maxCapability typeDesc = case getTypeInfo typeDesc of
     (dataName, primBaseName, baseType) -> case splitTypes maxCapability typeDesc of
         (splitType, splitCount) -> (dataName, primBaseName, baseType, splitType, splitCount, getDataName splitType)
 
+-- | Generate a pattern synonym for a given vector size.
+genPatSynonym :: Int -> String
+genPatSynonym n = unlines
+    ["-- | Convenient way to match against and construct " ++ show n ++ "-ary vectors."
+    ,"pattern Vec" ++ show n ++ " :: (ElemTuple v ~ " ++ tuplT ++ ", SIMDVector v)"
+    ,"    => " ++ targs ++ " v"
+    ,"pattern Vec" ++ show n ++ " " ++ args ++ " <- (unpackVector -> " ++ tuple ++ ") where"
+    ,"    Vec" ++ show n ++ " " ++ args ++ " = packVector " ++ tuple
+    ]
+    where
+        tuplT, targs, args, tuple :: String
+        tuplT = tupleType n "a"
+        targs = concat $ replicate n "a -> "
+        vars  = ['x' : show x | x <- [1..n]]
+        args  = unwords vars
+        tuple = matchTuple True vars
+
 -- | Generate a function to broadcast a value to all elements of the vector
 getBroadCastFunc :: Int -> TypeDesc -> String
 getBroadCastFunc maxCapability typeDesc = unlines ["{-# INLINE " ++ funcName ++ " #-}", funcDoc, funcSig, funcImpl]
@@ -778,11 +795,13 @@ generateTypeCode maxCapability typeDesc = unlines [dataDoc, dataDecl, funcImpls]
         dataDecl  = genTypeDecl maxCapability typeDesc
         funcImpls = unlines $ filter (not . null) $ map ($ typeDesc) (generatorFuncs maxCapability)
 
-classFile :: Bool -> String
-classFile doRules = unlines $
+classFile :: Bool -> Bool -> String
+classFile genPatSyns doRules = unlines $
     ["{-# LANGUAGE TypeFamilies          #-}"
     ,"{-# LANGUAGE MultiParamTypeClasses #-}"
     ,"{-# LANGUAGE FlexibleContexts      #-}"
+    ,if genPatSyns then "{-# LANGUAGE PatternSynonyms       #-}" else ""
+    ,if genPatSyns then "{-# LANGUAGE ViewPatterns          #-}" else ""
     ,if doRules then "{-# LANGUAGE MagicHash             #-}" else ""
     ,if doRules then "{-# OPTIONS_GHC -fno-warn-orphans  #-}" else ""
     ,"module Data.Primitive.SIMD.Class where"
@@ -821,6 +840,7 @@ classFile doRules = unlines $
     ,"    --   the range @0 .. 'vectorSize' - 1@."
     ,"    generateVector   :: (Int -> Elem v) -> v"
     ,"    -- | Insert a scalar at the given position (starting from 0) in a vector. If the index is outside of the range an exception is thrown."
+    ,"    {-# INLINE insertVector #-}"
     ,"    insertVector     :: v -> Elem v -> Int -> v"
     ,"    insertVector v e i | i < 0            = error $ \"insertVector: negative argument: \" ++ show i"
     ,"                       | i < vectorSize v = unsafeInsertVector v e i"
@@ -867,8 +887,9 @@ classFile doRules = unlines $
     ,"    writeOffAddr addr off v"
     ,"    setOffAddrGeneric addr (off + 1) (n - 1) v"
     ,""
-    ] ++ rules
+    ] ++ patSyns ++ rules
     where
+        patSyns = if genPatSyns then map genPatSynonym [2, 4, 8, 16, 32, 64] else []
         rules = if doRules then map mkRule (filter isRealPrimitiveType allPrimitiveTypes) ++ [""] else []
         mkRule td = let
             p = getPrimName td
@@ -876,12 +897,12 @@ classFile doRules = unlines $
                "{-# RULES \"pack/unpack " ++ p ++ "\" forall x . pack" ++ p ++ " (unpack" ++ p ++ " x) = x #-}"
         isRealPrimitiveType td = getPrimName td /= "DoubleX16#"
 
-exposedFile :: String
-exposedFile = unlines
+exposedFile :: Bool -> String
+exposedFile genPatSyns = unlines $
     ["-----------------------------------------------------------------------------"
     ,"-- |"
     ,"-- Module      :  Data.Primitive.SIMD"
-    ,"-- Copyright   :  (c) 2015 Anselm Jonas Scholl"
+    ,"-- Copyright   :  (c) 2015 - 2017 Anselm Jonas Scholl"
     ,"-- License     :  BSD3"
     ,"-- "
     ,"-- Maintainer  :  anselm.scholl@tu-harburg.de"
@@ -891,20 +912,24 @@ exposedFile = unlines
     ,"-- SIMD data types and functions."
     ,"--"
     ,"-----------------------------------------------------------------------------"
+    ,if genPatSyns then "{-# LANGUAGE PatternSynonyms #-}" else ""
     ,"module Data.Primitive.SIMD ("
     ,"     -- * SIMD type classes"
     ,"     SIMDVector(..)"
     ,"    ,SIMDIntVector(..)"
     ,"     -- * SIMD data types"
-    ,(if maxTupleSize < 64 then "    ,Tuple64(..)" else "") ++
-    concatMap (\ td -> "\n    ," ++ getDataName td) allPrimitiveTypes
-    ,"    ) where"
+    ] ++ tuple64 ++ types ++ patSyns ++
+    ["    ) where"
     ,""
     ,"-- This code was AUTOMATICALLY generated, DO NOT EDIT!"
     ,""
-    ,"import Data.Primitive.SIMD.Class" ++
-    concatMap (\ td -> "\nimport Data.Primitive.SIMD." ++ getDataName td) allPrimitiveTypes
-    ]
+    ,"import Data.Primitive.SIMD.Class"
+    ] ++ imports
+    where
+        tuple64 = if maxTupleSize < 64 then ["    ,Tuple64(..)"] else []
+        types = map (\ td -> "    ," ++ getDataName td) allPrimitiveTypes
+        patSyns = if genPatSyns then ["    ,pattern Vec" ++ show n | n <- [2, 4, 8, 16, 32, 64]] else []
+        imports = map (\ td -> "import Data.Primitive.SIMD." ++ getDataName td) allPrimitiveTypes
 
 fileHeader :: TypeDesc -> String
 fileHeader td = unlines $
@@ -977,17 +1002,10 @@ groupLines ('\n':'\n':'\n':x:xs) = groupLines ('\n':'\n':x:xs)
 groupLines (x:xs) = x : groupLines xs
 groupLines []     = []
 
-genCode :: FilePath -> Int -> IO ()
-genCode fp maxCapability = do
+genCode :: FilePath -> Bool -> Int -> IO ()
+genCode fp genPatSyns maxCapability = do
     createDirectoryIfMissing True fp
-    writeFile (fp ++ "/Class.hs") $ classFile (maxCapability /= 0)
-    writeFile (fp ++ ".hs") exposedFile
+    writeFile (fp ++ "/Class.hs") $ classFile genPatSyns (maxCapability /= 0)
+    writeFile (fp ++ ".hs") $ exposedFile genPatSyns
     forM_ allPrimitiveTypes $ \ td ->
         writeFile (fp ++ "/" ++ getDataName td ++ ".hs") (groupLines $ replaceX1 $ generateCode maxCapability td)
-
-main :: IO ()
-main = do
-    genCode "src-no-vec/Data/Primitive/SIMD" 0
-    genCode "src-128/Data/Primitive/SIMD" (128 `quot` 8)
-    genCode "src-256/Data/Primitive/SIMD" (256 `quot` 8)
-    genCode "src-512/Data/Primitive/SIMD" (512 `quot` 8)

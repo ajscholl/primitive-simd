@@ -1,5 +1,5 @@
 name:                primitive-simd
-version:             0.1.0.0
+version:             0.1.1.0
 synopsis:            SIMD data types and functions
 description:         This package provides a lifted version of the SIMD data types
                      and instructions from ghc-prim.
@@ -27,151 +27,29 @@ author:              Anselm Jonas Scholl
 maintainer:          anselm.scholl@tu-harburg.de
 copyright:           (c) 2015 Anselm Jonas Scholl
 category:            Data
-build-type:          Simple
-extra-source-files:  src-generate/Generator.hs,
-                     generate.sh,
-
-                     src-no-vec/Data/Primitive/SIMD.hs,
-                     src-no-vec/Data/Primitive/SIMD/Class.hs,
-                     src-no-vec/Data/Primitive/SIMD/Int8X16.hs,
-                     src-no-vec/Data/Primitive/SIMD/Int8X32.hs,
-                     src-no-vec/Data/Primitive/SIMD/Int8X64.hs,
-                     src-no-vec/Data/Primitive/SIMD/Int16X8.hs,
-                     src-no-vec/Data/Primitive/SIMD/Int16X16.hs,
-                     src-no-vec/Data/Primitive/SIMD/Int16X32.hs,
-                     src-no-vec/Data/Primitive/SIMD/Int32X4.hs,
-                     src-no-vec/Data/Primitive/SIMD/Int32X8.hs,
-                     src-no-vec/Data/Primitive/SIMD/Int32X16.hs,
-                     src-no-vec/Data/Primitive/SIMD/Int64X2.hs,
-                     src-no-vec/Data/Primitive/SIMD/Int64X4.hs,
-                     src-no-vec/Data/Primitive/SIMD/Int64X8.hs,
-                     src-no-vec/Data/Primitive/SIMD/Word8X16.hs,
-                     src-no-vec/Data/Primitive/SIMD/Word8X32.hs,
-                     src-no-vec/Data/Primitive/SIMD/Word8X64.hs,
-                     src-no-vec/Data/Primitive/SIMD/Word16X8.hs,
-                     src-no-vec/Data/Primitive/SIMD/Word16X16.hs,
-                     src-no-vec/Data/Primitive/SIMD/Word16X32.hs,
-                     src-no-vec/Data/Primitive/SIMD/Word32X4.hs,
-                     src-no-vec/Data/Primitive/SIMD/Word32X8.hs,
-                     src-no-vec/Data/Primitive/SIMD/Word32X16.hs,
-                     src-no-vec/Data/Primitive/SIMD/Word64X2.hs,
-                     src-no-vec/Data/Primitive/SIMD/Word64X4.hs,
-                     src-no-vec/Data/Primitive/SIMD/Word64X8.hs,
-                     src-no-vec/Data/Primitive/SIMD/FloatX4.hs,
-                     src-no-vec/Data/Primitive/SIMD/FloatX8.hs,
-                     src-no-vec/Data/Primitive/SIMD/FloatX16.hs,
-                     src-no-vec/Data/Primitive/SIMD/DoubleX2.hs,
-                     src-no-vec/Data/Primitive/SIMD/DoubleX4.hs,
-                     src-no-vec/Data/Primitive/SIMD/DoubleX8.hs,
-                     src-no-vec/Data/Primitive/SIMD/DoubleX16.hs,
-
-                     src-128/Data/Primitive/SIMD.hs,
-                     src-128/Data/Primitive/SIMD/Class.hs,
-                     src-128/Data/Primitive/SIMD/Int8X16.hs,
-                     src-128/Data/Primitive/SIMD/Int8X32.hs,
-                     src-128/Data/Primitive/SIMD/Int8X64.hs,
-                     src-128/Data/Primitive/SIMD/Int16X8.hs,
-                     src-128/Data/Primitive/SIMD/Int16X16.hs,
-                     src-128/Data/Primitive/SIMD/Int16X32.hs,
-                     src-128/Data/Primitive/SIMD/Int32X4.hs,
-                     src-128/Data/Primitive/SIMD/Int32X8.hs,
-                     src-128/Data/Primitive/SIMD/Int32X16.hs,
-                     src-128/Data/Primitive/SIMD/Int64X2.hs,
-                     src-128/Data/Primitive/SIMD/Int64X4.hs,
-                     src-128/Data/Primitive/SIMD/Int64X8.hs,
-                     src-128/Data/Primitive/SIMD/Word8X16.hs,
-                     src-128/Data/Primitive/SIMD/Word8X32.hs,
-                     src-128/Data/Primitive/SIMD/Word8X64.hs,
-                     src-128/Data/Primitive/SIMD/Word16X8.hs,
-                     src-128/Data/Primitive/SIMD/Word16X16.hs,
-                     src-128/Data/Primitive/SIMD/Word16X32.hs,
-                     src-128/Data/Primitive/SIMD/Word32X4.hs,
-                     src-128/Data/Primitive/SIMD/Word32X8.hs,
-                     src-128/Data/Primitive/SIMD/Word32X16.hs,
-                     src-128/Data/Primitive/SIMD/Word64X2.hs,
-                     src-128/Data/Primitive/SIMD/Word64X4.hs,
-                     src-128/Data/Primitive/SIMD/Word64X8.hs,
-                     src-128/Data/Primitive/SIMD/FloatX4.hs,
-                     src-128/Data/Primitive/SIMD/FloatX8.hs,
-                     src-128/Data/Primitive/SIMD/FloatX16.hs,
-                     src-128/Data/Primitive/SIMD/DoubleX2.hs,
-                     src-128/Data/Primitive/SIMD/DoubleX4.hs,
-                     src-128/Data/Primitive/SIMD/DoubleX8.hs,
-                     src-128/Data/Primitive/SIMD/DoubleX16.hs,
-
-                     src-256/Data/Primitive/SIMD.hs,
-                     src-256/Data/Primitive/SIMD/Class.hs,
-                     src-256/Data/Primitive/SIMD/Int8X16.hs,
-                     src-256/Data/Primitive/SIMD/Int8X32.hs,
-                     src-256/Data/Primitive/SIMD/Int8X64.hs,
-                     src-256/Data/Primitive/SIMD/Int16X8.hs,
-                     src-256/Data/Primitive/SIMD/Int16X16.hs,
-                     src-256/Data/Primitive/SIMD/Int16X32.hs,
-                     src-256/Data/Primitive/SIMD/Int32X4.hs,
-                     src-256/Data/Primitive/SIMD/Int32X8.hs,
-                     src-256/Data/Primitive/SIMD/Int32X16.hs,
-                     src-256/Data/Primitive/SIMD/Int64X2.hs,
-                     src-256/Data/Primitive/SIMD/Int64X4.hs,
-                     src-256/Data/Primitive/SIMD/Int64X8.hs,
-                     src-256/Data/Primitive/SIMD/Word8X16.hs,
-                     src-256/Data/Primitive/SIMD/Word8X32.hs,
-                     src-256/Data/Primitive/SIMD/Word8X64.hs,
-                     src-256/Data/Primitive/SIMD/Word16X8.hs,
-                     src-256/Data/Primitive/SIMD/Word16X16.hs,
-                     src-256/Data/Primitive/SIMD/Word16X32.hs,
-                     src-256/Data/Primitive/SIMD/Word32X4.hs,
-                     src-256/Data/Primitive/SIMD/Word32X8.hs,
-                     src-256/Data/Primitive/SIMD/Word32X16.hs,
-                     src-256/Data/Primitive/SIMD/Word64X2.hs,
-                     src-256/Data/Primitive/SIMD/Word64X4.hs,
-                     src-256/Data/Primitive/SIMD/Word64X8.hs,
-                     src-256/Data/Primitive/SIMD/FloatX4.hs,
-                     src-256/Data/Primitive/SIMD/FloatX8.hs,
-                     src-256/Data/Primitive/SIMD/FloatX16.hs,
-                     src-256/Data/Primitive/SIMD/DoubleX2.hs,
-                     src-256/Data/Primitive/SIMD/DoubleX4.hs,
-                     src-256/Data/Primitive/SIMD/DoubleX8.hs,
-                     src-256/Data/Primitive/SIMD/DoubleX16.hs,
-
-                     src-512/Data/Primitive/SIMD.hs,
-                     src-512/Data/Primitive/SIMD/Class.hs,
-                     src-512/Data/Primitive/SIMD/Int8X16.hs,
-                     src-512/Data/Primitive/SIMD/Int8X32.hs,
-                     src-512/Data/Primitive/SIMD/Int8X64.hs,
-                     src-512/Data/Primitive/SIMD/Int16X8.hs,
-                     src-512/Data/Primitive/SIMD/Int16X16.hs,
-                     src-512/Data/Primitive/SIMD/Int16X32.hs,
-                     src-512/Data/Primitive/SIMD/Int32X4.hs,
-                     src-512/Data/Primitive/SIMD/Int32X8.hs,
-                     src-512/Data/Primitive/SIMD/Int32X16.hs,
-                     src-512/Data/Primitive/SIMD/Int64X2.hs,
-                     src-512/Data/Primitive/SIMD/Int64X4.hs,
-                     src-512/Data/Primitive/SIMD/Int64X8.hs,
-                     src-512/Data/Primitive/SIMD/Word8X16.hs,
-                     src-512/Data/Primitive/SIMD/Word8X32.hs,
-                     src-512/Data/Primitive/SIMD/Word8X64.hs,
-                     src-512/Data/Primitive/SIMD/Word16X8.hs,
-                     src-512/Data/Primitive/SIMD/Word16X16.hs,
-                     src-512/Data/Primitive/SIMD/Word16X32.hs,
-                     src-512/Data/Primitive/SIMD/Word32X4.hs,
-                     src-512/Data/Primitive/SIMD/Word32X8.hs,
-                     src-512/Data/Primitive/SIMD/Word32X16.hs,
-                     src-512/Data/Primitive/SIMD/Word64X2.hs,
-                     src-512/Data/Primitive/SIMD/Word64X4.hs,
-                     src-512/Data/Primitive/SIMD/Word64X8.hs,
-                     src-512/Data/Primitive/SIMD/FloatX4.hs,
-                     src-512/Data/Primitive/SIMD/FloatX8.hs,
-                     src-512/Data/Primitive/SIMD/FloatX16.hs,
-                     src-512/Data/Primitive/SIMD/DoubleX2.hs,
-                     src-512/Data/Primitive/SIMD/DoubleX4.hs,
-                     src-512/Data/Primitive/SIMD/DoubleX8.hs,
-                     src-512/Data/Primitive/SIMD/DoubleX16.hs
-
+build-type:          Custom
+extra-source-files:  Generator.hs
 cabal-version:       >=1.10
+
+custom-setup
+  setup-depends:
+    base >= 4.9 && < 5,
+    Cabal >= 1.24,
+    directory >= 1.2.0.0,
+    filepath >= 1.4.0.0,
+    temporary >= 1.2,
+    process >= 1.4.0.0,
+    basic-cpuid >= 0.1.0.0
 
 flag no-vec
   Description: Disable all vector hardware instructions. Your code will run
                on all hardware but also be a lot slower.
+  Default:     False
+  Manual:      True
+
+flag vec128
+  Description: Overrides inferring the used vector size and forces 128-bit vectors.
+               Useful if you compile your code for other machines.
   Default:     False
   Manual:      True
 
@@ -235,19 +113,14 @@ library
     ghc-prim >= 0.3.1,
     primitive >= 0.5,
     vector >= 0.10
-  if flag(no-vec)
-    hs-source-dirs:       src-no-vec
-  else
+  hs-source-dirs:         src
+  if !flag(no-vec)
     ghc-options:          -fllvm
     if flag(vec512)
-      hs-source-dirs:     src-512
       ghc-options:        -mavx512f
     else
       if flag(vec256)
-        hs-source-dirs:   src-256
         ghc-options:      -mavx2
-      else
-        hs-source-dirs:   src-128
   ghc-options:            -Wall -fwarn-tabs -fwarn-incomplete-record-updates -fwarn-monomorphism-restriction -fwarn-incomplete-uni-patterns
   default-language:       Haskell2010
 
