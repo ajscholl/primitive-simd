@@ -24,21 +24,22 @@ before_install:
 
 install:
  - cabal install cabal-install
- - cabal --version
+ - where cabal || true
+ - /home/travis/.cabal/bin/cabal --version
  - echo "$(ghc --version) [$(ghc --print-project-git-commit-id 2> /dev/null || echo '?')]"
  - travis_retry cabal update
- - cabal install --only-dependencies --enable-tests
+ - /home/travis/.cabal/bin/cabal install --only-dependencies --enable-tests
 
 script:
- - cabal configure --enable-tests
- - cabal build --ghc-options=-Werror
- - cabal test
- - cabal check
- - cabal sdist
- - export SRC_TGZ=$(cabal info . | awk '{print $2 ".tar.gz";exit}') ;
+ - /home/travis/.cabal/bin/cabal configure --enable-tests
+ - /home/travis/.cabal/bin/cabal build --ghc-options=-Werror
+ - /home/travis/.cabal/bin/cabal test
+ - /home/travis/.cabal/bin/cabal check
+ - /home/travis/.cabal/bin/cabal sdist
+ - export SRC_TGZ=$(/home/travis/.cabal/bin/cabal info . | awk '{print $2 ".tar.gz";exit}') ;
    cd dist/;
    if [ -f "$SRC_TGZ" ]; then
-      cabal install --force-reinstalls "$SRC_TGZ";
+      /home/travis/.cabal/bin/cabal install --force-reinstalls "$SRC_TGZ";
    else
       echo "expected '$SRC_TGZ' not found";
       exit 1;
