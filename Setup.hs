@@ -1,22 +1,20 @@
 module Main where
 
-import Control.Monad
+import Control.Monad (when, unless)
 
-import Data.Bits
-import Data.Bifunctor
-import Data.Char
-import Data.List
-import Data.Maybe
+import Data.Bifunctor (first)
+import Data.List (stripPrefix)
+import Data.Maybe (mapMaybe, isNothing)
 
-import Distribution.Simple
-import Distribution.Simple.BuildPaths
-import Distribution.System
+import Distribution.Simple (UserHooks(..), simpleUserHooks, defaultMainWithHooksArgs, CompilerFlavor(..), buildCompilerFlavor)
+import Distribution.Simple.BuildPaths (autogenModulesDir, exeExtension, objExtension)
+import Distribution.System (Arch(..), buildArch)
 import Distribution.Simple.Program.Builtin (ghcProgram)
 import Distribution.Simple.Program.Types (programFindLocation, ProgramSearchPathEntry(ProgramSearchPathDefault))
 import Distribution.Verbosity (silent)
 
-import System.Environment
-import System.Exit
+import System.Environment (getArgs, getEnvironment)
+import System.Exit (ExitCode(..))
 
 import System.FilePath ((</>), replaceExtension)
 import System.IO (hPutStrLn, stderr)
