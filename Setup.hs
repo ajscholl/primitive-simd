@@ -1,9 +1,12 @@
 {-# OPTIONS_GHC -Wall #-}
 module Main where
 
+import Control.Arrow (first)
+import Control.Applicative (pure, (<$>), (<*>))
 import Control.Monad (when, unless)
 
-import Data.Bifunctor (first)
+import Prelude
+
 import Data.List (stripPrefix)
 import Data.Maybe (mapMaybe, isNothing)
 
@@ -24,7 +27,7 @@ import System.Process (readProcessWithExitCode)
 
 import System.Cpuid.Basic (supportsSSE2, supportsAVX2, supportsAVX512f)
 
-import Generator (genCode)
+import Generator (genCode, PatsMode(..))
 
 data SSESupport = SSESupport {
      supportSSE2    :: Bool -- ^ Support for 128-bit vectors exists
@@ -74,63 +77,70 @@ checkLLVMSupport chatty = case buildCompilerFlavor of
 
 -- | Example code for our use of pattern synonyms. We use it to make sure we can
 --   use them (we can't on GHC 8.0.1).
-patSynTestCode :: String
-patSynTestCode = unlines
+patSynTestCode :: Bool -> String
+patSynTestCode patSigs = unlines
     ["{-# LANGUAGE PatternSynonyms #-}"
     ,"{-# LANGUAGE ViewPatterns    #-}"
+    ,"{-# LANGUAGE TypeFamilies    #-}"
     ,"module PatSynTest where"
     ,""
-    ,"data X a = X a a a a"
+    ,"data X a = X a a"
     ,""
-    ,"unpackX :: X a -> (a, a, a, a)"
-    ,"unpackX (X a b c d) = (a, b, c, d)"
+    ,"class Vector v where"
+    ,"    type ElemType v"
+    ,"    type ElemTuple v"
+    ,"    packVector :: ElemTuple v -> v"
+    ,"    unpackVector :: v -> ElemTuple v"
     ,""
-    ,"pattern VecX :: a -> a -> a -> a -> X a"
-    ,"pattern VecX x1 x2 x3 x4 <- (unpackX -> (x1, x2, x3, x4)) where"
-    ,"    VecX x1 x2 x3 x4 = X x1 x2 x3 x4"
+    ,"instance Vector (X a) where"
+    ,"    type ElemType (X a) = a"
+    ,"    type ElemTuple (X a) = (a, a)"
+    ,"    packVector (a, b) = X a b"
+    ,"    unpackVector (X a b) = (a, b)"
     ,""
-    ,"pattern VecXF :: Float -> Float -> Float -> Float -> X Float"
-    ,"pattern VecXF x1 x2 x3 x4 = VecX x1 x2 x3 x4"
-    ,""
-    ,"pattern Y4F :: Float -> Float -> Float -> Float -> X Float"
-    ,"pattern Y4F x1 x2 x3 x4 = Y x1 x2 x3 x4"
-    ,""
-    ,"pattern Y :: a -> a -> a -> a -> X a"
-    ,"pattern Y a b c d = X a b c d"
+    ,if patSigs then "pattern Vec2 :: (Vector v, ElemTuple v ~ (a, b)) => a -> b -> v" else ""
+    ,"pattern Vec2 x1 x2 <- (unpackVector -> (x1, x2)) where"
+    ,"    Vec2 x1 x2 = packVector (x1, x2)"
     ]
 
 -- | Check if we can compile pattern synonyms. Our detection scheme is not really
 --   advanced,
-getPatSynSupport :: Bool -> IO Bool
+getPatSynSupport :: Bool -> IO PatsMode
 getPatSynSupport chatty = case buildCompilerFlavor of
     GHC -> do
         mLoc <- fmap fst <$> programFindLocation ghcProgram silent [ProgramSearchPathDefault]
         case mLoc of
-            Nothing -> pure False
+            Nothing -> pure NoPats
             Just loc -> withSystemTempDirectory "patsyn-test" $ \ tmpDir -> do
                 let hsFile = tmpDir </> "PatSyns.hs"
                     exeFile = tmpDir </> replaceExtension "PatSyns" objExtension
-                writeFile hsFile patSynTestCode
+                writeFile hsFile (patSynTestCode True)
                 (exitCode, stdoutS, stderrS) <- readProcessWithExitCode loc ["-O", hsFile, "-o", exeFile, "-c"] ""
                 case exitCode of
-                    ExitSuccess -> pure True
-                    _ -> do
-                        when chatty $ do
-                            hPutStrLn stderr $ "WARNING: Failed to compile code with Pattern Synonyms, the result was " ++ show exitCode
-                            hPutStrLn stderr $ "=============================\nSTDOUT:\n" ++ stdoutS
-                            hPutStrLn stderr $ "=============================\nSTDERR:\n" ++ stderrS
-                            hPutStrLn stderr $ "=============================\nDisabled pattern synonym code generation"
-                        pure False
+                    ExitSuccess -> pure Pats
+                    _           -> do
+                        -- maybe we can get by without pattern signatures...
+                        writeFile hsFile (patSynTestCode False)
+                        (exitCode', _, _) <- readProcessWithExitCode loc ["-O", hsFile, "-o", exeFile, "-c"] ""
+                        case exitCode' of
+                            ExitSuccess -> pure NoPatSigs
+                            _           -> do
+                                when chatty $ do
+                                    hPutStrLn stderr $ "WARNING: Failed to compile code with Pattern Synonyms, the result was " ++ show exitCode
+                                    hPutStrLn stderr $ "=============================\nSTDOUT:\n" ++ stdoutS
+                                    hPutStrLn stderr $ "=============================\nSTDERR:\n" ++ stderrS
+                                    hPutStrLn stderr $ "=============================\nDisabled pattern synonym code generation"
+                                pure NoPats
     _ -> do
         when chatty $ hPutStrLn stderr "WARNING: Unsupported compiler, compilation may fail..."
-        pure False
+        pure NoPats
 
 -- | Generate sources in for the given vector width in the given directory.
 --   Also takes care of figuring out the pattern synonym support.
 genSrc :: Int -> FilePath -> IO ()
 genSrc n autogenDir = do
     usePatSyns <- getPatSynSupport True
-    unless usePatSyns $
+    when (usePatSyns == NoPats) $
         hPutStrLn stderr $ "WARNING: The compiler does not seem to support pattern synonyms "
             ++ "(GHC 8.0.1 does not correctly and crashes!), the synonyms Vec<2,4,8,16,32,64> will "
             ++ "be missing. If you encounter undefined references of that name, you need to use a "

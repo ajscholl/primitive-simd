@@ -29,16 +29,17 @@ copyright:           (c) 2015 Anselm Jonas Scholl
 category:            Data
 build-type:          Custom
 extra-source-files:  Generator.hs
-cabal-version:       >=1.10
+-- custom-setup is only supported since 1.24
+cabal-version:       >= 1.24
 
 custom-setup
   setup-depends:
-    base >= 4.9 && < 5,
+    base >= 4.7 && < 5,
     Cabal >= 1.24,
-    directory >= 1.2.0.0,
-    filepath >= 1.4.0.0,
-    temporary >= 1.2,
-    process >= 1.4.0.0,
+    directory >= 1.0.0.0,
+    filepath >= 1.0,
+    temporary >= 1.1,
+    process >= 1.1.0.0,
     basic-cpuid >= 0.1.0.0
 
 flag no-vec
@@ -109,7 +110,7 @@ library
     MultiParamTypeClasses,
     CPP
   build-depends:
-    base >=4.7 && < 5,
+    base >= 4.7 && < 5,
     ghc-prim >= 0.3.1,
     primitive >= 0.5,
     vector >= 0.10

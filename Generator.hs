@@ -1,15 +1,17 @@
 {-# OPTIONS_GHC -Wall #-}
-module Generator (genCode) where
+module Generator (genCode, PatsMode(..)) where
 
 import Control.Monad
 
 import Data.Char
 import Data.List
 import Data.Maybe
+import Data.Version (Version(..))
 
 import GHC.Exts (maxTupleSize)
 
 import System.Directory (createDirectoryIfMissing)
+import System.Info (compilerVersion)
 
 {-
 
@@ -204,6 +206,9 @@ genPrimHelperFuncs maxCapability td | maxCapability /= 0 = ""
             ,"negate" ++ baseType ++ " a = case negate (" ++ constr ++ " a) of " ++ constr ++ " b -> b"
             ]
 
+fmapStr :: String
+fmapStr = if versionBranch compilerVersion >= [7, 10] then "<$>" else "`liftM`"
+
 -- | Get the data declaration for this type as well as the instance declarations
 genTypeDecl :: Int -> TypeDesc -> String
 genTypeDecl maxCapability typeDesc = unlines
@@ -359,8 +364,8 @@ genTypeDecl maxCapability typeDesc = unlines
             ,"newtype instance UV.MVector s " ++ dataName ++ " = MV_" ++ dataName ++ " (PMV.MVector s " ++ dataName ++ ")"
             ,""
             ,"instance Vector UV.Vector " ++ dataName ++ " where"
-            ,"    basicUnsafeFreeze (MV_" ++ dataName ++ " v) = V_" ++ dataName ++ " <$> PV.unsafeFreeze v"
-            ,"    basicUnsafeThaw (V_" ++ dataName ++ " v) = MV_" ++ dataName ++ " <$> PV.unsafeThaw v"
+            ,"    basicUnsafeFreeze (MV_" ++ dataName ++ " v) = V_" ++ dataName ++ " " ++ fmapStr ++ " PV.unsafeFreeze v"
+            ,"    basicUnsafeThaw (V_" ++ dataName ++ " v) = MV_" ++ dataName ++ " " ++ fmapStr ++ " PV.unsafeThaw v"
             ,"    basicLength (V_" ++ dataName ++ " v) = PV.length v"
             ,"    basicUnsafeSlice start len (V_" ++ dataName ++ " v) = V_" ++ dataName ++ "(PV.unsafeSlice start len v)"
             ,"    basicUnsafeIndexM (V_" ++ dataName ++ " v) = PV.unsafeIndexM v"
@@ -378,7 +383,7 @@ genTypeDecl maxCapability typeDesc = unlines
             ,"    basicLength (MV_" ++ dataName ++ " v) = PMV.length v"
             ,"    basicUnsafeSlice start len (MV_" ++ dataName ++ " v) = MV_" ++ dataName ++ "(PMV.unsafeSlice start len v)"
             ,"    basicOverlaps (MV_" ++ dataName ++ " v) (MV_" ++ dataName ++ " w) = PMV.overlaps v w"
-            ,"    basicUnsafeNew len = MV_" ++ dataName ++ " <$> PMV.unsafeNew len"
+            ,"    basicUnsafeNew len = MV_" ++ dataName ++ " " ++ fmapStr ++ " PMV.unsafeNew len"
             ,"#if MIN_VERSION_vector(0,11,0)"
             ,"    basicInitialize (MV_" ++ dataName ++ " v) = basicInitialize v"
             ,"#endif"
@@ -403,15 +408,16 @@ getExtendedTypeInfo maxCapability typeDesc = case getTypeInfo typeDesc of
         (splitType, splitCount) -> (dataName, primBaseName, baseType, splitType, splitCount, getDataName splitType)
 
 -- | Generate a pattern synonym for a given vector size.
-genPatSynonym :: Int -> String
-genPatSynonym n = unlines
+genPatSynonym :: Bool -> Int -> String
+genPatSynonym patSigs n = unlines
     ["-- | Convenient way to match against and construct " ++ show n ++ "-ary vectors."
-    ,"pattern Vec" ++ show n ++ " :: (ElemTuple v ~ " ++ tuplT ++ ", SIMDVector v)"
-    ,"    => " ++ targs ++ " v"
+    ,patSigPrefix ++ "pattern Vec" ++ show n ++ " :: (ElemTuple v ~ " ++ tuplT ++ ", SIMDVector v)"
+    ,patSigPrefix ++ "    => " ++ targs ++ " v"
     ,"pattern Vec" ++ show n ++ " " ++ args ++ " <- (unpackVector -> " ++ tuple ++ ") where"
     ,"    Vec" ++ show n ++ " " ++ args ++ " = packVector " ++ tuple
     ]
     where
+        patSigPrefix = if patSigs then "" else "-- "
         tuplT, targs, args, tuple :: String
         tuplT = tupleType n "a"
         targs = concat $ replicate n "a -> "
@@ -796,13 +802,15 @@ generateTypeCode maxCapability typeDesc = unlines [dataDoc, dataDecl, funcImpls]
         dataDecl  = genTypeDecl maxCapability typeDesc
         funcImpls = unlines $ filter (not . null) $ map ($ typeDesc) (generatorFuncs maxCapability)
 
-classFile :: Bool -> Bool -> String
+data PatsMode = NoPats | NoPatSigs | Pats deriving Eq
+
+classFile :: PatsMode -> Bool -> String
 classFile genPatSyns doRules = unlines $
     ["{-# LANGUAGE TypeFamilies          #-}"
     ,"{-# LANGUAGE MultiParamTypeClasses #-}"
     ,"{-# LANGUAGE FlexibleContexts      #-}"
-    ,if genPatSyns then "{-# LANGUAGE PatternSynonyms       #-}" else ""
-    ,if genPatSyns then "{-# LANGUAGE ViewPatterns          #-}" else ""
+    ,if genPatSyns /= NoPats then "{-# LANGUAGE PatternSynonyms       #-}" else ""
+    ,if genPatSyns /= NoPats then "{-# LANGUAGE ViewPatterns          #-}" else ""
     ,if doRules then "{-# LANGUAGE MagicHash             #-}" else ""
     ,if doRules then "{-# OPTIONS_GHC -fno-warn-orphans  #-}" else ""
     ,"module Data.Primitive.SIMD.Class where"
@@ -890,7 +898,7 @@ classFile genPatSyns doRules = unlines $
     ,""
     ] ++ patSyns ++ rules
     where
-        patSyns = if genPatSyns then map genPatSynonym [2, 4, 8, 16, 32, 64] else []
+        patSyns = if genPatSyns /= NoPats then map (genPatSynonym (genPatSyns == Pats)) [2, 4, 8, 16, 32, 64] else []
         rules = if doRules then map mkRule (filter isRealPrimitiveType allPrimitiveTypes) ++ [""] else []
         mkRule td = let
             p = getPrimName td
@@ -898,7 +906,7 @@ classFile genPatSyns doRules = unlines $
                "{-# RULES \"pack/unpack " ++ p ++ "\" forall x . pack" ++ p ++ " (unpack" ++ p ++ " x) = x #-}"
         isRealPrimitiveType td = getPrimName td /= "DoubleX16#"
 
-exposedFile :: Bool -> String
+exposedFile :: PatsMode -> String
 exposedFile genPatSyns = unlines $
     ["-----------------------------------------------------------------------------"
     ,"-- |"
@@ -913,7 +921,7 @@ exposedFile genPatSyns = unlines $
     ,"-- SIMD data types and functions."
     ,"--"
     ,"-----------------------------------------------------------------------------"
-    ,if genPatSyns then "{-# LANGUAGE PatternSynonyms #-}" else ""
+    ,if genPatSyns /= NoPats then "{-# LANGUAGE PatternSynonyms #-}" else ""
     ,"module Data.Primitive.SIMD ("
     ,"     -- * SIMD type classes"
     ,"     SIMDVector(..)"
@@ -929,7 +937,7 @@ exposedFile genPatSyns = unlines $
     where
         tuple64 = if maxTupleSize < 64 then ["    ,Tuple64(..)"] else []
         types = map (\ td -> "    ," ++ getDataName td) allPrimitiveTypes
-        patSyns = if genPatSyns then ["    ,pattern Vec" ++ show (n :: Int) | n <- [2, 4, 8, 16, 32, 64]] else []
+        patSyns = if genPatSyns /= NoPats then ["    ,pattern Vec" ++ show (n :: Int) | n <- [2, 4, 8, 16, 32, 64]] else []
         imports = map (\ td -> "import Data.Primitive.SIMD." ++ getDataName td) allPrimitiveTypes
 
 fileHeader :: TypeDesc -> String
@@ -941,13 +949,16 @@ fileHeader td = unlines $
     ,"{-# LANGUAGE BangPatterns          #-}"
     ,"{-# LANGUAGE MultiParamTypeClasses #-}"
     ,"{-# LANGUAGE CPP                   #-}"
-    ,"{-# OPTIONS_GHC -Wno-inline-rule-shadowing #-}"
+    ,if versionBranch compilerVersion >= [7, 10] then "{-# OPTIONS_GHC -Wno-inline-rule-shadowing #-}" else ""
     ,""
     ,if is64 td then "#include \"MachDeps.h\"" else ""
     ,""
     ,"module Data.Primitive.SIMD." ++ getDataName td ++ " (" ++ getDataName td ++ ") where"
     ,""
     ,"-- This code was AUTOMATICALLY generated, DO NOT EDIT!"
+    ,""
+    ,if versionBranch compilerVersion < [7, 10] then "import Control.Monad" else ""
+    ,"import Prelude"
     ,""
     ,"import Data.Primitive.SIMD.Class"
     ,""
@@ -1003,7 +1014,7 @@ groupLines ('\n':'\n':'\n':x:xs) = groupLines ('\n':'\n':x:xs)
 groupLines (x:xs) = x : groupLines xs
 groupLines []     = []
 
-genCode :: FilePath -> Bool -> Int -> IO ()
+genCode :: FilePath -> PatsMode -> Int -> IO ()
 genCode fp genPatSyns maxCapability = do
     createDirectoryIfMissing True fp
     writeFile (fp ++ "/Class.hs") $ classFile genPatSyns (maxCapability /= 0)
