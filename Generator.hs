@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -Wall #-}
 module Generator (genCode) where
 
 import Control.Monad
@@ -719,7 +720,7 @@ getWriteByteArrayFunc maxCapability typeDesc = unlines ["{-# INLINE " ++ funcNam
         matchVars = map (('m':) . show) [1..splitCount]
         funcDoc  = "-- | Write a vector to specified index of mutable array."
         funcSig  = funcName ++ " :: PrimMonad m => MutableByteArray (PrimState m) -> Int -> " ++ dataName ++ " -> m ()"
-        funcImpl = funcName ++ " (MutableByteArray a) (I# i) (" ++ dataName ++ " " ++ unwords matchVars ++ ") = " ++ intercalate " >> " (zipWith helper matchVars [0..])
+        funcImpl = funcName ++ " (MutableByteArray a) (I# i) (" ++ dataName ++ " " ++ unwords matchVars ++ ") = " ++ intercalate " >> " (zipWith helper matchVars [(0 :: Int)..])
         helper m i = "primitive_ (" ++ primFuncName ++ " a ((i *# " ++ show splitCount ++ "#) +# " ++ show i ++ "#) " ++ m ++ ")"
 
 getIndexOffAddrFunc :: Int -> TypeDesc -> String
@@ -928,7 +929,7 @@ exposedFile genPatSyns = unlines $
     where
         tuple64 = if maxTupleSize < 64 then ["    ,Tuple64(..)"] else []
         types = map (\ td -> "    ," ++ getDataName td) allPrimitiveTypes
-        patSyns = if genPatSyns then ["    ,pattern Vec" ++ show n | n <- [2, 4, 8, 16, 32, 64]] else []
+        patSyns = if genPatSyns then ["    ,pattern Vec" ++ show (n :: Int) | n <- [2, 4, 8, 16, 32, 64]] else []
         imports = map (\ td -> "import Data.Primitive.SIMD." ++ getDataName td) allPrimitiveTypes
 
 fileHeader :: TypeDesc -> String
