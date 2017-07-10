@@ -56,7 +56,9 @@ checkLLVMSupport chatty = case buildCompilerFlavor of
     GHC -> do
         mLoc <- fmap fst <$> programFindLocation ghcProgram silent [ProgramSearchPathDefault]
         case mLoc of
-            Nothing -> pure False
+            Nothing  -> do
+                when chatty $ hPutStrLn stderr "Could not determine GHC location, disabled usage of LLVM"
+                pure False
             Just loc -> withSystemTempDirectory "llvm-test" $ \ tmpDir -> do
                 let hsFile = tmpDir </> "LLVMTest.hs"
                     exeFile = tmpDir </> replaceExtension "LLVMTest" exeExtension
@@ -64,8 +66,16 @@ checkLLVMSupport chatty = case buildCompilerFlavor of
                 (exitCode, stdoutS, stderrS) <- readProcessWithExitCode loc ["-O", hsFile, "-fllvm", "-o", exeFile] ""
                 case exitCode of
                     ExitSuccess -> do
-                        exitVals <- readProcessWithExitCode exeFile [] ""
-                        pure $ exitVals == (ExitSuccess, "Hello, World", "")
+                        exitVals@(exitCode', stdoutS', stderrS') <- readProcessWithExitCode exeFile [] ""
+                        if exitVals == (ExitSuccess, "Hello, World\n", "")
+                        then pure True
+                        else do
+                            when chatty $ do
+                                hPutStrLn stderr $ "WARNING: Code compiled with LLVM did not return expected output, the result was " ++ show exitCode'
+                                hPutStrLn stderr $ "=============================\nSTDOUT:\n" ++ stdoutS'
+                                hPutStrLn stderr $ "=============================\nSTDERR:\n" ++ stderrS'
+                                hPutStrLn stderr $ "=============================\nDisabled LLVM code generation"
+                            pure False
                     _ -> do
                         when chatty $ do
                             hPutStrLn stderr $ "WARNING: Failed to compile code with LLVM, the result was " ++ show exitCode
@@ -73,7 +83,9 @@ checkLLVMSupport chatty = case buildCompilerFlavor of
                             hPutStrLn stderr $ "=============================\nSTDERR:\n" ++ stderrS
                             hPutStrLn stderr $ "=============================\nDisabled LLVM code generation"
                         pure False
-    _ -> pure False
+    _ -> do
+        when chatty $ hPutStrLn stderr "Usage of LLVM is currently only supported for GHC"
+        pure False
 
 -- | Example code for our use of pattern synonyms. We use it to make sure we can
 --   use them (we can't on GHC 8.0.1).
