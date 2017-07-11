@@ -7,14 +7,17 @@ import Control.Monad (when, unless)
 
 import Prelude
 
+import Data.Char (isSpace)
 import Data.List (stripPrefix)
 import Data.Maybe (mapMaybe, isNothing)
 
+import Distribution.ModuleName (ModuleName, fromString)
+import Distribution.PackageDescription (BuildInfo(..), Library(..), PackageDescription(..))
 import Distribution.Simple (UserHooks(..), simpleUserHooks, defaultMainWithHooksArgs, CompilerFlavor(..), buildCompilerFlavor)
 import Distribution.Simple.BuildPaths (autogenModulesDir, exeExtension, objExtension)
-import Distribution.System (Arch(..), buildArch)
 import Distribution.Simple.Program.Builtin (ghcProgram)
 import Distribution.Simple.Program.Types (programFindLocation, ProgramSearchPathEntry(ProgramSearchPathDefault))
+import Distribution.System (Arch(..), buildArch)
 import Distribution.Verbosity (silent)
 
 import System.Environment (getArgs, getEnvironment)
@@ -255,6 +258,26 @@ hooks = simpleUserHooks {
         -- generate sources
         genSrcForFlag flag $ autogenModulesDir localBuildInfo
         pure localBuildInfo
+    ,sDistHook = \ pkgDesc mLocBuildInfo uHooks sDistFlags -> do
+        -- we have to filter our the auto generated modules to avoid cabal complaining
+        -- about not finding them
+        let parseXAutogenModules :: String -> [ModuleName]
+            parseXAutogenModules = map (fromString . filter (not. isSpace)) . lines
+            filterModules :: BuildInfo -> [ModuleName] -> [ModuleName]
+            filterModules bi = case maybe [] parseXAutogenModules $ lookup "x-autogen-modules" $ customFieldsBI bi of
+                autogens -> filter (`notElem` autogens)
+            fixBuildInfoAutogens :: BuildInfo -> BuildInfo
+            fixBuildInfoAutogens bi = bi { otherModules = filterModules bi (otherModules bi) }
+            fixLibraryAutogens :: Library -> Library
+            fixLibraryAutogens lib  = lib {
+                 exposedModules     = filterModules (libBuildInfo lib) (exposedModules lib)
+                ,requiredSignatures = filterModules (libBuildInfo lib) (requiredSignatures lib)
+                ,exposedSignatures  = filterModules (libBuildInfo lib) (exposedSignatures lib)
+                ,libBuildInfo       = fixBuildInfoAutogens (libBuildInfo lib)
+            }
+            pkgDesc' :: PackageDescription
+            pkgDesc' = pkgDesc { library = fixLibraryAutogens <$> library pkgDesc }
+        sDistHook simpleUserHooks pkgDesc' mLocBuildInfo uHooks sDistFlags
 }
 
 main :: IO ()

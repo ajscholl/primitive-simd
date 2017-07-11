@@ -101,6 +101,41 @@ library
     Data.Primitive.SIMD.DoubleX4
     Data.Primitive.SIMD.DoubleX8
     Data.Primitive.SIMD.DoubleX16
+  -- custom field listing all modules which we exclude from source distributions
+  x-autogen-modules:
+    Data.Primitive.SIMD
+    Data.Primitive.SIMD.Class
+    Data.Primitive.SIMD.Int8X16
+    Data.Primitive.SIMD.Int8X32
+    Data.Primitive.SIMD.Int8X64
+    Data.Primitive.SIMD.Int16X8
+    Data.Primitive.SIMD.Int16X16
+    Data.Primitive.SIMD.Int16X32
+    Data.Primitive.SIMD.Int32X4
+    Data.Primitive.SIMD.Int32X8
+    Data.Primitive.SIMD.Int32X16
+    Data.Primitive.SIMD.Int64X2
+    Data.Primitive.SIMD.Int64X4
+    Data.Primitive.SIMD.Int64X8
+    Data.Primitive.SIMD.Word8X16
+    Data.Primitive.SIMD.Word8X32
+    Data.Primitive.SIMD.Word8X64
+    Data.Primitive.SIMD.Word16X8
+    Data.Primitive.SIMD.Word16X16
+    Data.Primitive.SIMD.Word16X32
+    Data.Primitive.SIMD.Word32X4
+    Data.Primitive.SIMD.Word32X8
+    Data.Primitive.SIMD.Word32X16
+    Data.Primitive.SIMD.Word64X2
+    Data.Primitive.SIMD.Word64X4
+    Data.Primitive.SIMD.Word64X8
+    Data.Primitive.SIMD.FloatX4
+    Data.Primitive.SIMD.FloatX8
+    Data.Primitive.SIMD.FloatX16
+    Data.Primitive.SIMD.DoubleX2
+    Data.Primitive.SIMD.DoubleX4
+    Data.Primitive.SIMD.DoubleX8
+    Data.Primitive.SIMD.DoubleX16
   other-extensions:
     UnboxedTuples,
     MagicHash,
