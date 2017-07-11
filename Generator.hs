@@ -949,7 +949,7 @@ fileHeader td = unlines $
     ,"{-# LANGUAGE BangPatterns          #-}"
     ,"{-# LANGUAGE MultiParamTypeClasses #-}"
     ,"{-# LANGUAGE CPP                   #-}"
-    ,if versionBranch compilerVersion >= [7, 10] then "{-# OPTIONS_GHC -Wno-inline-rule-shadowing #-}" else ""
+    ,if versionBranch compilerVersion >= [8, 0] then "{-# OPTIONS_GHC -Wno-inline-rule-shadowing #-}" else ""
     ,""
     ,if is64 td then "#include \"MachDeps.h\"" else ""
     ,""

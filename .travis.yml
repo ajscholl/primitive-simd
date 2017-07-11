@@ -23,8 +23,8 @@ before_install:
  - export PATH=/home/travis/.cabal/bin:/opt/ghc/$GHCVER/bin:/opt/cabal/$CABALVER/bin:$PATH
 
 install:
+ - cabal update
  - cabal install cabal-install
- - where cabal || true
  - /home/travis/.cabal/bin/cabal --version
  - echo "$(ghc --version) [$(ghc --print-project-git-commit-id 2> /dev/null || echo '?')]"
  - travis_retry cabal update
