@@ -320,6 +320,7 @@ genTypeDecl maxCapability typeDesc = unlines
             ,"    elementSize _      = " ++ show (getElementSize typeDesc)
             ,"    broadcastVector    = broadcast" ++ dataName
             ,"    generateVector     = generate" ++ dataName
+            ,"    unsafeIndexVector  = unsafeIndex" ++ dataName
             ,"    unsafeInsertVector = unsafeInsert" ++ dataName
             ,"    packVector         = pack" ++ dataName
             ,"    unpackVector       = unpack" ++ dataName
@@ -332,6 +333,7 @@ genTypeDecl maxCapability typeDesc = unlines
             ,"    {-# INLINE elementSize #-}"
             ,"    {-# INLINE broadcastVector #-}"
             ,"    {-# INLINE generateVector #-}"
+            ,"    {-# INLINE unsafeIndexVector #-}"
             ,"    {-# INLINE unsafeInsertVector #-}"
             ,"    {-# INLINE packVector #-}"
             ,"    {-# INLINE unpackVector #-}"
@@ -472,6 +474,41 @@ getUnpackFunc maxCapability typeDesc = unlines ["{-# INLINE " ++ funcName ++ " #
         buildCaseMatches (m:ms) (sl:sls) ind = "case " ++ primFuncName ++ " " ++ m ++ " of\n\t" ++ ind ++ "(# " ++ unkomma sl ++ " #) -> " ++ buildCaseMatches ms sls ('\t':ind)
         buildCaseMatches _ _ _ = error "no length match"
 
+toCases :: [(String, String)] -> [String]
+toCases [] = error "toCases: empty list"
+toCases [(_, x)] = [x]
+toCases l = foldr toCasesHelper [] l
+    where
+        toCasesHelper :: (String, String) -> [String] -> [String]
+        toCasesHelper (_, x) [] = ["| otherwise " ++ x]
+        toCasesHelper (c, x) xs = ("| " ++ c ++ " " ++ x) : xs
+
+-- | Generate a function to index values out of a vector
+getIndexFunc :: Int -> TypeDesc -> String
+getIndexFunc maxCapability typeDesc = unlines ["{-# INLINE " ++ funcName ++ " #-}", funcDoc, funcSig, funcImpl, "    where", indexSubElem]
+    where
+        (dataName, primBaseName, baseType, splitType, splitCount, splitDataName) = getExtendedTypeInfo maxCapability typeDesc
+        incCount     = getVectorSize splitType
+        funcName = "unsafeIndex" ++ dataName
+        matchVars = map (('m':) . show) [1 .. splitCount]
+        funcDoc  = "-- | Extract a scalar from the given position (starting from 0) out of a vector. "
+            ++ "If the index is outside of the range, the behavior is undefined."
+        funcSig  = funcName ++ " :: " ++ dataName ++ " -> Int -> " ++ baseType
+        funcStart = funcName ++ " (" ++ dataName ++ " " ++ unwords matchVars ++ ") i "
+        allStarts = funcStart : repeat wsStart
+        wsStart   = replicate (length funcStart) ' '
+        funcImpl  = intercalate "\n" $ zipWith (++) allStarts (toCases matchCases)
+        matchCases = map buildMatchCase [0..splitCount-1]
+        buildMatchCase :: Int -> (String, String)
+        buildMatchCase ix = ("i < " ++ show ((ix + 1) * incCount), "= " ++ primBaseName ++ " (indexSubElem (i - " ++ show (ix * incCount) ++ ") " ++ (matchVars !! ix) ++ ")")
+        indexSubElemSig = "indexSubElem :: Int -> " ++ splitDataName ++ "# -> " ++ getUnderlyingPrimType (getBaseType splitType)
+        indexSubElem = unlines $ map (replicate 8 ' ' ++) $
+            [indexSubElemSig
+            ,"indexSubElem n vec# = case unpack" ++ splitDataName ++ "# vec# of"
+            ,replicate 4 ' ' ++ "(# " ++ intercalate ", " indexSubElemVars ++ " #) -> case n of"
+            ] ++ [replicate 8 ' ' ++ (if n == (incCount - 1) then "_" else show n) ++ " -> " ++ indexSubElemVars !! n | n <- [0 .. incCount - 1]]
+        indexSubElemVars = map (('v':) . show) [1 .. incCount]
+
 -- | Generate a function to insert values into a vector
 getInsertFunc :: Int -> TypeDesc -> String
 getInsertFunc maxCapability typeDesc = unlines ["{-# INLINE " ++ funcName ++ " #-}", funcDoc, funcSig, funcImpl]
@@ -490,13 +527,6 @@ getInsertFunc maxCapability typeDesc = unlines ["{-# INLINE " ++ funcName ++ " #
         matchCases = map buildMatchCase [0..splitCount-1]
         buildMatchCase :: Int -> (String, String)
         buildMatchCase ix = ("_i < " ++ show ((ix + 1) * incCount ), "= " ++ dataName ++ " " ++ unwords (take ix matchVars ++ ["(" ++ primFuncName ++ " " ++ matchVars !! ix ++ " y (ip -# " ++ show (ix * incCount) ++ "#))"] ++ drop (ix + 1) matchVars))
-        toCases :: [(String, String)] -> [String]
-        toCases [] = error "urk"
-        toCases [(_, x)] = [x]
-        toCases l = foldr toCasesHelper [] l
-        toCasesHelper :: (String, String) -> [String] -> [String]
-        toCasesHelper (_, x) [] = ["| otherwise " ++ x]
-        toCasesHelper (c, x) xs = ("| " ++ c ++ " " ++ x) : xs
 
 -- | Generate a function to generate a vector from an index-function
 getGenerateFunc :: TypeDesc -> String
@@ -775,6 +805,7 @@ generatorFuncs maxCapability =
     ,getGenerateFunc
     ,getPackFunc maxCapability
     ,getUnpackFunc maxCapability
+    ,getIndexFunc maxCapability
     ,getInsertFunc maxCapability
     ,getMapFunc
     ,getZipFunc
@@ -822,7 +853,8 @@ classFile genPatSyns doRules = unlines $
     ,""
     ,if doRules then "import GHC.Exts" else ""
     ,""
-    ,if maxTupleSize < 64 then "-- | The compiler only supports tuples up to " ++ show maxTupleSize ++ " elements, so we have to use our own data type." else ""
+    ,if maxTupleSize < 64 then "-- | The compiler only supports tuples up to "
+        ++ show maxTupleSize ++ " elements, so we have to use our own data type." else ""
     ,if maxTupleSize < 64 then "data Tuple64 a = Tuple64" ++ concat (replicate 64 " a") else ""
     ,""
     ,"-- * SIMD type classes"
@@ -848,13 +880,25 @@ classFile genPatSyns doRules = unlines $
     ,"    -- | The vector that results from applying the given function to all indices in"
     ,"    --   the range @0 .. 'vectorSize' - 1@."
     ,"    generateVector   :: (Int -> Elem v) -> v"
-    ,"    -- | Insert a scalar at the given position (starting from 0) in a vector. If the index is outside of the range an exception is thrown."
+    ,"    -- | Extract a scalar from the given position (starting from 0) out of a vector."
+    ,"    --   If the index is outside of the range an exception is thrown."
+    ,"    {-# INLINE indexVector #-}"
+    ,"    indexVector     :: v -> Int -> Elem v"
+    ,"    indexVector v i | i < 0            = error $ \"indexVector: negative argument: \" ++ show i"
+    ,"                    | i < vectorSize v = unsafeIndexVector v i"
+    ,"                    | otherwise        = error $ \"indexVector: argument too large: \" ++ show i"
+    ,"    -- | Extract a scalar from the given position (starting from 0) out of a vector."
+    ,"    --   If the index is outside of the range the behavior is undefined."
+    ,"    unsafeIndexVector     :: v -> Int -> Elem v"
+    ,"    -- | Insert a scalar at the given position (starting from 0) in a vector."
+    ,"    --   If the index is outside of the range an exception is thrown."
     ,"    {-# INLINE insertVector #-}"
     ,"    insertVector     :: v -> Elem v -> Int -> v"
     ,"    insertVector v e i | i < 0            = error $ \"insertVector: negative argument: \" ++ show i"
     ,"                       | i < vectorSize v = unsafeInsertVector v e i"
     ,"                       | otherwise        = error $ \"insertVector: argument too large: \" ++ show i"
-    ,"    -- | Insert a scalar at the given position (starting from 0) in a vector. If the index is outside of the range the behavior is undefined."
+    ,"    -- | Insert a scalar at the given position (starting from 0) in a vector."
+    ,"    --   If the index is outside of the range the behavior is undefined."
     ,"    unsafeInsertVector     :: v -> Elem v -> Int -> v"
     ,"    -- | Apply a function to each element of a vector. Be very careful not to map"
     ,"    --   branching functions over a vector as they could lead to quite a bit of"
