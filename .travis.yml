@@ -30,10 +30,10 @@ before_install:
  - travis_retry sudo apt-get update
  - travis_retry sudo apt-get install cabal-install-$CABALVER ghc-$GHCVER
  - if [ -z $LLVMVER ]; then
-      echo "Skipping LLVM..."
+      echo "Skipping LLVM...";
    else
-      travis_retry sudo apt-get install llvm-$LLVMVER
-      export PATH=/usr/lib/llvm-$LLVMVER/bin:$PATH
+      travis_retry sudo apt-get install llvm-$LLVMVER;
+      export PATH=/usr/lib/llvm-$LLVMVER/bin:$PATH;
    fi
  - export PATH=/home/travis/.cabal/bin:/opt/ghc/$GHCVER/bin:/opt/cabal/$CABALVER/bin:$PATH
 
