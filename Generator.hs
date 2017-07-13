@@ -501,7 +501,10 @@ getIndexFunc maxCapability typeDesc = unlines ["{-# INLINE " ++ funcName ++ " #-
         matchCases = map buildMatchCase [0..splitCount-1]
         buildMatchCase :: Int -> (String, String)
         buildMatchCase ix = ("i < " ++ show ((ix + 1) * incCount), "= " ++ primBaseName ++ " (indexSubElem (i - " ++ show (ix * incCount) ++ ") " ++ (matchVars !! ix) ++ ")")
-        indexSubElemSig = "indexSubElem :: Int -> " ++ splitDataName ++ "# -> " ++ getUnderlyingPrimType (getBaseType splitType)
+        indexArgName = if incCount == 1
+            then getUnderlyingPrimType (getBaseType splitType)
+            else splitDataName ++ "#"
+        indexSubElemSig = "indexSubElem :: Int -> " ++ indexArgName ++ " -> " ++ getUnderlyingPrimType (getBaseType splitType)
         indexSubElem = unlines $ map (replicate 8 ' ' ++) $
             [indexSubElemSig
             ,"indexSubElem n vec# = case unpack" ++ splitDataName ++ "# vec# of"
