@@ -40,7 +40,8 @@ custom-setup
     filepath >= 1.0,
     temporary >= 1.1,
     process >= 1.1.0.0,
-    basic-cpuid >= 0.1.0.0
+    basic-cpuid >= 0.1.0.0,
+    containers
 
 flag no-vec
   Description: Disable all vector hardware instructions. Your code will run

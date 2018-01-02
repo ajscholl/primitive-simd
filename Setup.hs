@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 {-# OPTIONS_GHC -Wall #-}
 module Main where
 
@@ -9,12 +10,21 @@ import Prelude
 
 import Data.Char (isSpace)
 import Data.List (stripPrefix)
-import Data.Maybe (mapMaybe, isNothing)
+import Data.Maybe
+
+#if MIN_VERSION_Cabal(2,0,0)
+import qualified Data.Map as Map
+#endif
 
 import Distribution.ModuleName (ModuleName, fromString)
+#if MIN_VERSION_Cabal(2,0,0)
+import Distribution.PackageDescription (BuildInfo(..), Library(..), PackageDescription(..), defaultLibName)
+import Distribution.Types.LocalBuildInfo (LocalBuildInfo(..))
+#else
 import Distribution.PackageDescription (BuildInfo(..), Library(..), PackageDescription(..))
+#endif
 import Distribution.Simple (UserHooks(..), simpleUserHooks, defaultMainWithHooksArgs, CompilerFlavor(..), buildCompilerFlavor)
-import Distribution.Simple.BuildPaths (autogenModulesDir, exeExtension, objExtension)
+import Distribution.Simple.BuildPaths
 import Distribution.Simple.Program.Builtin (ghcProgram)
 import Distribution.Simple.Program.Types (programFindLocation, ProgramSearchPathEntry(ProgramSearchPathDefault))
 import Distribution.System (Arch(..), buildArch)
@@ -256,7 +266,14 @@ hooks = simpleUserHooks {
         strArgs <- getArgs
         (_, flag) <- resolveFlags False strArgs
         -- generate sources
+#if MIN_VERSION_Cabal(2,0,0)
+        let componentLocalBuildInfo = case fromMaybe [] $ Map.lookup defaultLibName $ componentNameMap localBuildInfo of
+                []    -> error "Can't find library component build info"
+                (x:_) -> x
+        genSrcForFlag flag $ autogenComponentModulesDir localBuildInfo componentLocalBuildInfo
+#else
         genSrcForFlag flag $ autogenModulesDir localBuildInfo
+#endif
         pure localBuildInfo
     ,sDistHook = \ pkgDesc mLocBuildInfo uHooks sDistFlags -> do
         -- we have to filter our the auto generated modules to avoid cabal complaining
@@ -271,8 +288,12 @@ hooks = simpleUserHooks {
             fixLibraryAutogens :: Library -> Library
             fixLibraryAutogens lib  = lib {
                  exposedModules     = filterModules (libBuildInfo lib) (exposedModules lib)
+#if MIN_VERSION_Cabal(2,0,0)
+                ,signatures         = filterModules (libBuildInfo lib) (signatures lib)
+#else
                 ,requiredSignatures = filterModules (libBuildInfo lib) (requiredSignatures lib)
                 ,exposedSignatures  = filterModules (libBuildInfo lib) (exposedSignatures lib)
+#endif
                 ,libBuildInfo       = fixBuildInfoAutogens (libBuildInfo lib)
             }
             pkgDesc' :: PackageDescription

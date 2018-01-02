@@ -953,8 +953,8 @@ classFile genPatSyns doRules = unlines $
                "{-# RULES \"pack/unpack " ++ p ++ "\" forall x . pack" ++ p ++ " (unpack" ++ p ++ " x) = x #-}"
         isRealPrimitiveType td = getPrimName td /= "DoubleX16#"
 
-exposedFile :: PatsMode -> String
-exposedFile genPatSyns = unlines $
+exposedFile :: PatsMode -> Int -> String
+exposedFile genPatSyns maxCapability = unlines $
     ["-----------------------------------------------------------------------------"
     ,"-- |"
     ,"-- Module      :  Data.Primitive.SIMD"
@@ -975,13 +975,34 @@ exposedFile genPatSyns = unlines $
     ,"    ,SIMDIntVector(..)"
     ,"     -- * SIMD data types"
     ] ++ tuple64 ++ types ++ patSyns ++
-    ["    ) where"
+    ["     -- * Build information"
+    ,"    ,VectorExtension(..)"
+    ,"    ,getVectorExtensionSize"
+    ,"    ,buildWithSSE"
+    ,"    ) where"
     ,""
     ,"-- This code was AUTOMATICALLY generated, DO NOT EDIT!"
     ,""
     ,"import Data.Primitive.SIMD.Class"
-    ] ++ imports
+    ] ++ imports ++
+    [""
+    ,"data VectorExtension = SSE128 | SSE256 | SSE512 deriving (Show, Eq, Ord, Enum)"
+    ,""
+    ,"-- | Get the number of bits usable with a vector extension."
+    ,"getVectorExtensionSize :: VectorExtension -> Int"
+    ,"getVectorExtensionSize SSE128 = 128"
+    ,"getVectorExtensionSize SSE256 = 256"
+    ,"getVectorExtensionSize SSE512 = 512"
+    ,""
+    ,"-- | If this library was build with vector instruction support,"
+    ,"--   this will contain the enabled vector extension."
+    ,"buildWithSSE :: Maybe VectorExtension"
+    ,"buildWithSSE = " ++ vectorExtension
+    ]
     where
+        vectorExtension = case maxCapability * 8 of
+            0 -> "Nothing"
+            n -> "Just SSE" ++ show n
         tuple64 = if maxTupleSize < 64 then ["    ,Tuple64(..)"] else []
         types = map (\ td -> "    ," ++ getDataName td) allPrimitiveTypes
         patSyns = if genPatSyns /= NoPats then ["    ,pattern Vec" ++ show (n :: Int) | n <- [2, 4, 8, 16, 32, 64]] else []
@@ -1065,6 +1086,6 @@ genCode :: FilePath -> PatsMode -> Int -> IO ()
 genCode fp genPatSyns maxCapability = do
     createDirectoryIfMissing True fp
     writeFile (fp ++ "/Class.hs") $ classFile genPatSyns (maxCapability /= 0)
-    writeFile (fp ++ ".hs") $ exposedFile genPatSyns
+    writeFile (fp ++ ".hs") $ exposedFile genPatSyns maxCapability
     forM_ allPrimitiveTypes $ \ td ->
         writeFile (fp ++ "/" ++ getDataName td ++ ".hs") (groupLines $ replaceX1 $ generateCode maxCapability td)
