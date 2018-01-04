@@ -1,22 +1,22 @@
 language: haskell
 
 env:
- - CABALVER=1.22 GHCVER=7.8.1
- - CABALVER=1.22 GHCVER=7.8.2
- - CABALVER=1.22 GHCVER=7.8.3
- - CABALVER=1.22 GHCVER=7.8.4
- - CABALVER=1.22 GHCVER=7.8.4 LLVMVER=3.4
- - CABALVER=1.22 GHCVER=7.10.1
- - CABALVER=1.22 GHCVER=7.10.2
- - CABALVER=1.22 GHCVER=7.10.3
- - CABALVER=1.22 GHCVER=7.10.3 LLVMVER=3.6
+ - CABALVER=1.24 GHCVER=7.8.1
+ - CABALVER=2.0 GHCVER=7.8.2
+ - CABALVER=1.24 GHCVER=7.8.3
+ - CABALVER=2.0 GHCVER=7.8.4
+ - CABALVER=1.24 GHCVER=7.8.4 LLVMVER=3.4
+ - CABALVER=2.0 GHCVER=7.10.1
+ - CABALVER=1.24 GHCVER=7.10.2
+ - CABALVER=1.24 GHCVER=7.10.3
+ - CABALVER=2.0 GHCVER=7.10.3 LLVMVER=3.6
  - CABALVER=1.24 GHCVER=8.0.1
- - CABALVER=1.24 GHCVER=8.0.2
+ - CABALVER=2.0 GHCVER=8.0.2
  - CABALVER=1.24 GHCVER=8.0.2 LLVMVER=3.7
  - CABALVER=1.24 GHCVER=8.2.1
- - CABALVER=1.24 GHCVER=8.2.1 LLVMVER=3.9
+ - CABALVER=2.0 GHCVER=8.2.1 LLVMVER=3.9
  - CABALVER=2.0 GHCVER=8.2.2
- - CABALVER=2.0 GHCVER=8.2.2 LLVMVER=3.9
+ - CABALVER=1.24 GHCVER=8.2.2 LLVMVER=3.9
  - CABALVER=head GHCVER=head
  - CABALVER=head GHCVER=head LLVMVER=4.0
 
@@ -28,6 +28,7 @@ matrix:
 before_install:
  - travis_retry sudo add-apt-repository -y ppa:hvr/ghc
  - travis_retry sudo apt-get update
+ - (sudo apt-get remove cabal-install && rm -rf /home/travis/.cabal) || true
  - travis_retry sudo apt-get install cabal-install-$CABALVER ghc-$GHCVER
  - if [ -z $LLVMVER ]; then
       echo "Skipping LLVM...";
@@ -38,7 +39,7 @@ before_install:
  - export PATH=/home/travis/.cabal/bin:/opt/ghc/$GHCVER/bin:/opt/cabal/$CABALVER/bin:$PATH
 
 install:
- - cat /home/travis/.cabal/config
+ - cat /home/travis/.cabal/config || true
  - travis_retry cabal update
  - cabal install cabal-install
  - /home/travis/.cabal/bin/cabal --version
