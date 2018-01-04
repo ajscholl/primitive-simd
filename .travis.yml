@@ -15,13 +15,13 @@ env:
  - CABALVER=1.24 GHCVER=8.0.2 LLVMVER=3.7
  - CABALVER=1.24 GHCVER=8.2.1
  - CABALVER=1.24 GHCVER=8.2.1 LLVMVER=3.9
+ - CABALVER=2.0 GHCVER=8.2.2
+ - CABALVER=2.0 GHCVER=8.2.2 LLVMVER=3.9
  - CABALVER=head GHCVER=head
  - CABALVER=head GHCVER=head LLVMVER=4.0
 
 matrix:
   allow_failures:
-   - env: CABALVER=1.24 GHCVER=8.2.1
-   - env: CABALVER=1.24 GHCVER=8.2.1 LLVMVER=3.9
    - env: CABALVER=head GHCVER=head
    - env: CABALVER=head GHCVER=head LLVMVER=4.0
 
@@ -38,6 +38,7 @@ before_install:
  - export PATH=/home/travis/.cabal/bin:/opt/ghc/$GHCVER/bin:/opt/cabal/$CABALVER/bin:$PATH
 
 install:
+ - cat /home/travis/.cabal/config
  - travis_retry cabal update
  - cabal install cabal-install
  - /home/travis/.cabal/bin/cabal --version
