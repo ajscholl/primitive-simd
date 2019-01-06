@@ -307,7 +307,7 @@ genTypeDecl maxCapability typeDesc = unlines
         storableInstance    = unlines
             ["instance Storable " ++ dataName ++ " where"
             ,"    sizeOf x     = vectorSize x * elementSize x"
-            ,"    alignment    = sizeOf" -- for best performance align vectors as good as their size
+            ,"    alignment    = Foreign.Storable.sizeOf" -- for best performance align vectors as good as their size
             ,"    peek (Ptr a) = readOffAddr (Addr a) 0"
             ,"    poke (Ptr a) = writeOffAddr (Addr a) 0"
             ]
@@ -1035,14 +1035,15 @@ fileHeader td = unlines $
     ,"import GHC.Exts"
     ,"import GHC.ST"
     ,""
-    ,"import Foreign.Storable"
+    ,"import Foreign.Storable (Storable)"
+    ,"import qualified Foreign.Storable"
     ,""
     ,"import Control.Monad.Primitive"
     ,""
     ,"import Data.Primitive.Types"
     ,"import Data.Primitive.ByteArray"
     ,"import Data.Primitive.Addr"
-    ,"import Data.Monoid"
+    ,if versionBranch compilerVersion < [8, 4] then "import Data.Monoid" else ""
     ,"import Data.Typeable"
     ,""
     ,"import qualified Data.Vector.Primitive as PV"
