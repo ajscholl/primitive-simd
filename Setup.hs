@@ -3,12 +3,16 @@
 module Main where
 
 import Control.Arrow (first)
+#if !MIN_VERSION_Cabal(3,0,0)
 import Control.Applicative (pure, (<$>), (<*>))
+#endif
 import Control.Monad (when, unless)
 
 import Prelude
 
+#if !MIN_VERSION_Cabal(3,0,0)
 import Data.Char (isSpace)
+#endif
 import Data.List (stripPrefix)
 import Data.Maybe
 
@@ -16,10 +20,14 @@ import Data.Maybe
 import qualified Data.Map as Map
 #endif
 
+#if !MIN_VERSION_Cabal(3,0,0)
 import Distribution.ModuleName (ModuleName, fromString)
+#endif
 #if MIN_VERSION_Cabal(2,0,0)
+#if !MIN_VERSION_Cabal(3,0,0)
 import Distribution.PackageDescription (BuildInfo(..), Library(..), PackageDescription(..), defaultLibName)
 import Distribution.Types.LocalBuildInfo (LocalBuildInfo(..))
+#endif
 #else
 import Distribution.PackageDescription (BuildInfo(..), Library(..), PackageDescription(..))
 #endif
@@ -29,6 +37,13 @@ import Distribution.Simple.Program.Builtin (ghcProgram)
 import Distribution.Simple.Program.Types (programFindLocation, ProgramSearchPathEntry(ProgramSearchPathDefault))
 import Distribution.System (Arch(..), buildArch)
 import Distribution.Verbosity (silent)
+
+#if MIN_VERSION_Cabal(3,0,0)
+import Distribution.Simple.LocalBuildInfo
+#endif
+#if MIN_VERSION_Cabal(2,3,0)
+import Distribution.System ( buildPlatform )
+#endif
 
 import System.Environment (getArgs, getEnvironment)
 import System.Exit (ExitCode(..))
@@ -74,7 +89,7 @@ checkLLVMSupport chatty = case buildCompilerFlavor of
                 pure False
             Just loc -> withSystemTempDirectory "llvm-test" $ \ tmpDir -> do
                 let hsFile = tmpDir </> "LLVMTest.hs"
-                    exeFile = tmpDir </> replaceExtension "LLVMTest" exeExtension
+                    exeFile = tmpDir </> replaceExtension "LLVMTest" myExeExtension
                 writeFile hsFile "main = putStrLn \"Hello, World\""
                 (exitCode, stdoutS, stderrS) <- readProcessWithExitCode loc ["-O", hsFile, "-fllvm", "-o", exeFile] ""
                 case exitCode of
@@ -99,6 +114,13 @@ checkLLVMSupport chatty = case buildCompilerFlavor of
     _ -> do
         when chatty $ hPutStrLn stderr "Usage of LLVM is currently only supported for GHC"
         pure False
+
+myExeExtension :: String
+#if MIN_VERSION_Cabal(2,3,0)
+myExeExtension = exeExtension buildPlatform
+#else
+myExeExtension = exeExtension
+#endif
 
 -- | Example code for our use of pattern synonyms. We use it to make sure we can
 --   use them (we can't on GHC 8.0.1).
@@ -267,7 +289,7 @@ hooks = simpleUserHooks {
         (_, flag) <- resolveFlags False strArgs
         -- generate sources
 #if MIN_VERSION_Cabal(2,0,0)
-        let componentLocalBuildInfo = case fromMaybe [] $ Map.lookup defaultLibName $ componentNameMap localBuildInfo of
+        let componentLocalBuildInfo = case fromMaybe [] $ Map.lookup mainLibName $ componentNameMap localBuildInfo of
                 []    -> error "Can't find library component build info"
                 (x:_) -> x
         genSrcForFlag flag $ autogenComponentModulesDir localBuildInfo componentLocalBuildInfo
@@ -275,31 +297,14 @@ hooks = simpleUserHooks {
         genSrcForFlag flag $ autogenModulesDir localBuildInfo
 #endif
         pure localBuildInfo
-    ,sDistHook = \ pkgDesc mLocBuildInfo uHooks sDistFlags -> do
-        -- we have to filter our the auto generated modules to avoid cabal complaining
-        -- about not finding them
-        let parseXAutogenModules :: String -> [ModuleName]
-            parseXAutogenModules = map (fromString . filter (not. isSpace)) . lines
-            filterModules :: BuildInfo -> [ModuleName] -> [ModuleName]
-            filterModules bi = case maybe [] parseXAutogenModules $ lookup "x-autogen-modules" $ customFieldsBI bi of
-                autogens -> filter (`notElem` autogens)
-            fixBuildInfoAutogens :: BuildInfo -> BuildInfo
-            fixBuildInfoAutogens bi = bi { otherModules = filterModules bi (otherModules bi) }
-            fixLibraryAutogens :: Library -> Library
-            fixLibraryAutogens lib  = lib {
-                 exposedModules     = filterModules (libBuildInfo lib) (exposedModules lib)
-#if MIN_VERSION_Cabal(2,0,0)
-                ,signatures         = filterModules (libBuildInfo lib) (signatures lib)
-#else
-                ,requiredSignatures = filterModules (libBuildInfo lib) (requiredSignatures lib)
-                ,exposedSignatures  = filterModules (libBuildInfo lib) (exposedSignatures lib)
-#endif
-                ,libBuildInfo       = fixBuildInfoAutogens (libBuildInfo lib)
-            }
-            pkgDesc' :: PackageDescription
-            pkgDesc' = pkgDesc { library = fixLibraryAutogens <$> library pkgDesc }
-        sDistHook simpleUserHooks pkgDesc' mLocBuildInfo uHooks sDistFlags
 }
+
+mainLibName :: ComponentName
+#if MIN_VERSION_Cabal(3,0,0)
+mainLibName = CLibName defaultLibName
+#else
+mainLibName = defaultLibName
+#endif
 
 main :: IO ()
 main = do
