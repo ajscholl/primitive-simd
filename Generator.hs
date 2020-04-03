@@ -307,7 +307,7 @@ genTypeDecl maxCapability typeDesc = unlines
         storableInstance    = unlines
             ["instance Storable " ++ dataName ++ " where"
             ,"    sizeOf x     = vectorSize x * elementSize x"
-            ,"    alignment    = sizeOf" -- for best performance align vectors as good as their size
+            ,"    alignment    = FSt.sizeOf" -- for best performance align vectors as good as their size
             ,"    peek (Ptr a) = readOffAddr (Addr a) 0"
             ,"    poke (Ptr a) = writeOffAddr (Addr a) 0"
             ]
@@ -350,8 +350,8 @@ genTypeDecl maxCapability typeDesc = unlines
             else ""
         primInstance        = unlines
             ["instance Prim " ++ dataName ++ " where"
-            ,"    sizeOf# a                   = let !(I# x) = sizeOf a in x"
-            ,"    alignment# a                = let !(I# x) = alignment a in x"
+            ,"    sizeOf# a                   = let !(I# x) = PTy.sizeOf a in x"
+            ,"    alignment# a                = let !(I# x) = PTy.alignment a in x"
             ,"    indexByteArray# ba i        = index" ++ dataName ++ "Array (ByteArray ba) (I# i)"
             ,"    readByteArray# mba i s      = let (ST r) = read" ++ dataName ++ "Array (MutableByteArray mba) (I# i) in r s"
             ,"    writeByteArray# mba i v s   = let (ST r) = write" ++ dataName ++ "Array (MutableByteArray mba) (I# i) v in case r s of { (# s', _ #) -> s' }"
@@ -853,6 +853,7 @@ classFile genPatSyns doRules = unlines $
     ,""
     ,"import Control.Monad.Primitive"
     ,"import Data.Primitive"
+    ,"import Data.Primitive.Addr"
     ,""
     ,if doRules then "import GHC.Exts" else ""
     ,""
@@ -1035,14 +1036,16 @@ fileHeader td = unlines $
     ,"import GHC.Exts"
     ,"import GHC.ST"
     ,""
-    ,"import Foreign.Storable"
+    ,"import Foreign.Storable  as FSt"
     ,""
     ,"import Control.Monad.Primitive"
     ,""
-    ,"import Data.Primitive.Types"
+    ,"import Data.Primitive.Types   as PTy"
     ,"import Data.Primitive.ByteArray"
     ,"import Data.Primitive.Addr"
+    ,"#if __GLASGOW_HASKELL__ < 804"
     ,"import Data.Monoid"
+    ,"#endif"
     ,"import Data.Typeable"
     ,""
     ,"import qualified Data.Vector.Primitive as PV"

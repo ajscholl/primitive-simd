@@ -106,7 +106,7 @@ library
     Data.Primitive.SIMD.DoubleX8
     Data.Primitive.SIMD.DoubleX16
   -- custom field listing all modules which we exclude from source distributions
-  x-autogen-modules:
+  autogen-modules:
     Data.Primitive.SIMD
     Data.Primitive.SIMD.Class
     Data.Primitive.SIMD.Int8X16
@@ -151,7 +151,8 @@ library
   build-depends:
     base >= 4.7 && < 5,
     ghc-prim >= 0.3.1,
-    primitive >= 0.5,
+    primitive >= 0.7,
+    primitive-addr >= 0.1.0,
     vector >= 0.10
   if !flag(no-vec) && (flag(vec128) || flag(vec256) || flag(vec512))
     ghc-options:          -fllvm
